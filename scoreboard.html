@@ -201,7 +201,18 @@
 
     /* 파티클 캔버스 */
     #particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+    /* 로그인 관련 애니메이션 및 스타일 */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25%      { transform: translateX(-6px); }
+      75%      { transform: translateX(6px); }
+    }
+    .animate-shake {
+      animation: shake 0.15s ease-in-out 3;
+    }
   </style>
+
 </head>
 
 <body class="bg-grid relative">
@@ -212,7 +223,7 @@
        class="fixed inset-0 bg-yellow-300 pointer-events-none z-[100] opacity-0 hidden"></div>
 
   <!-- ═══════════════════ 메인 레이아웃 ═══════════════════ -->
-  <div class="relative z-10 flex flex-col h-screen p-3 gap-2.5">
+  <div id="main-layout" class="relative z-10 flex flex-col h-screen p-3 gap-2.5 hidden">
 
     <!-- 헤더 -->
     <header class="flex items-center justify-between shrink-0 px-1">
@@ -278,51 +289,6 @@
           </button>
         </div>
 
-        <!-- 생존 현황 -->
-        <div class="rounded-2xl bg-[#161b22] border border-[#30363d] p-4 flex flex-col gap-2.5 shrink-0">
-          <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase">생존 현황</div>
-
-          <div class="neon-cyan rounded-xl p-3 flex items-center justify-between
-                      bg-sky-900/10">
-            <div class="flex items-center gap-1.5">
-              <span class="text-lg">👤</span>
-              <span class="text-cyan-400 text-sm font-bold glow-cyan">시민</span>
-            </div>
-            <div class="flex items-baseline gap-1">
-              <span id="citizen-count" class="font-orbitron font-black text-4xl text-sky-400 glow-cyan">
-                --
-              </span>
-              <span class="text-sky-400/50 text-sm">명</span>
-            </div>
-          </div>
-
-          <div class="neon-red rounded-xl p-3 flex items-center justify-between
-                      bg-red-900/10">
-            <div class="flex items-center gap-1.5">
-              <span class="text-lg">🧟</span>
-              <span class="text-red-400 text-sm font-bold glow-red">좀비</span>
-            </div>
-            <div class="flex items-baseline gap-1">
-              <span id="zombie-count" class="font-orbitron font-black text-4xl text-red-400 glow-red">
-                --
-              </span>
-              <span class="text-red-400/50 text-sm">명</span>
-            </div>
-          </div>
-
-          <!-- 비율 바 -->
-          <div class="relative h-2.5 rounded-full overflow-hidden bg-slate-800 flex">
-            <div id="ratio-citizen"
-                 class="h-full bg-gradient-to-r from-cyan-500 to-sky-400
-                        transition-all duration-700 ease-out rounded-l-full">
-            </div>
-            <div id="ratio-zombie"
-                 class="h-full bg-gradient-to-l from-red-500 to-rose-400
-                        transition-all duration-700 ease-out rounded-r-full">
-            </div>
-          </div>
-        </div>
-
         <!-- 공지 타임라인 -->
         <div class="rounded-2xl bg-[#161b22] border border-[#30363d] p-4 flex flex-col gap-2 flex-1 min-h-0">
           <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase">공지 일정</div>
@@ -361,30 +327,81 @@
         </div>
       </aside>
 
-      <!-- ══ 오른쪽: 플레이어 그리드 ══ -->
-      <section class="col-span-8 rounded-2xl bg-[#161b22] border border-[#30363d]
-                      p-4 flex flex-col gap-3 min-h-0">
-        <div class="flex items-center justify-between shrink-0">
-          <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase">플레이어 현황</div>
-          <div class="flex gap-3 text-xs text-slate-500">
-            <span class="flex items-center gap-1">
-              <span class="inline-block w-2.5 h-2.5 rounded-sm bg-cyan-500/40
-                           border border-cyan-400/60"></span>시민
-            </span>
-            <span class="flex items-center gap-1">
-              <span class="inline-block w-2.5 h-2.5 rounded-sm bg-red-500/40
-                           border border-red-400/60"></span>좀비
-            </span>
+      <!-- ══ 오른쪽 패널 (생존 현황 + 플레이어 현황) ══ -->
+      <div class="col-span-8 flex flex-col gap-2.5 min-h-0">
+
+        <!-- 생존 현황 -->
+        <div class="rounded-2xl bg-[#161b22] border border-[#30363d] p-4 flex flex-col gap-2.5 shrink-0">
+          <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase">생존 현황</div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="neon-cyan rounded-xl p-3 flex items-center justify-between bg-sky-900/10">
+              <div class="flex items-center gap-1.5">
+                <span class="text-lg">👤</span>
+                <span class="text-cyan-400 text-sm font-bold glow-cyan">시민</span>
+              </div>
+              <div class="flex items-baseline gap-1">
+                <span id="citizen-count" class="font-orbitron font-black text-4xl text-sky-400 glow-cyan">
+                  --
+                </span>
+                <span class="text-sky-400/50 text-sm">명</span>
+              </div>
+            </div>
+
+            <div class="neon-red rounded-xl p-3 flex items-center justify-between bg-red-900/10">
+              <div class="flex items-center gap-1.5">
+                <span class="text-lg">🧟</span>
+                <span class="text-red-400 text-sm font-bold glow-red">좀비</span>
+              </div>
+              <div class="flex items-baseline gap-1">
+                <span id="zombie-count" class="font-orbitron font-black text-4xl text-red-400 glow-red">
+                  --
+                </span>
+                <span class="text-red-400/50 text-sm">명</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 비율 바 -->
+          <div class="relative h-2.5 rounded-full overflow-hidden bg-slate-800 flex">
+            <div id="ratio-citizen"
+                 class="h-full bg-gradient-to-r from-cyan-500 to-sky-400
+                        transition-all duration-700 ease-out rounded-l-full">
+            </div>
+            <div id="ratio-zombie"
+                 class="h-full bg-gradient-to-l from-red-500 to-rose-400
+                        transition-all duration-700 ease-out rounded-r-full">
+            </div>
           </div>
         </div>
 
-        <!-- 그룹 레이블 + 그리드 -->
-        <div id="player-grid" class="grid grid-cols-6 gap-1.5 flex-1 min-h-0 content-start">
-          <!-- JS가 동적 생성 -->
-        </div>
-      </section>
+        <!-- 플레이어 현황 -->
+        <section class="rounded-2xl bg-[#161b22] border border-[#30363d]
+                        p-4 flex flex-col gap-3 flex-1 min-h-0">
+          <div class="flex items-center justify-between shrink-0">
+            <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase">플레이어 현황</div>
+            <div class="flex gap-3 text-xs text-slate-500">
+              <span class="flex items-center gap-1">
+                <span class="inline-block w-2.5 h-2.5 rounded-sm bg-cyan-500/40
+                             border border-cyan-400/60"></span>시민
+              </span>
+              <span class="flex items-center gap-1">
+                <span class="inline-block w-2.5 h-2.5 rounded-sm bg-red-500/40
+                             border border-red-400/60"></span>좀비
+              </span>
+            </div>
+          </div>
+
+          <!-- 그룹 레이블 + 그리드 -->
+          <div id="player-grid" class="grid grid-cols-6 gap-1.5 flex-1 min-h-0 content-start overflow-y-auto">
+            <!-- JS가 동적 생성 -->
+          </div>
+        </section>
+
+      </div>
     </main>
   </div>
+
 
   <!-- ═══════════════════ 알람 팝업 오버레이 ═══════════════════ -->
   <div id="alarm-overlay"
@@ -521,6 +538,85 @@
       </div>
     </div>
   </div>
+
+  <!-- ═══════════════════ 비밀번호 로그인 화면 ═══════════════════ -->
+  <div id="login-screen" class="fixed inset-0 z-[9999] flex flex-col justify-center items-center bg-[#080c10] bg-grid scanlines">
+    <div class="relative w-full max-w-md mx-4 p-8 rounded-2xl bg-[#161b22] border border-red-500/35 shadow-2xl flex flex-col items-center gap-6">
+      <div class="text-center">
+        <h2 class="font-orbitron font-black text-3xl tracking-wider text-red-500 glow-red">VIRUS 2026</h2>
+        <p class="text-xs text-slate-500 mt-1 uppercase tracking-[0.2em]">전광판 시스템 통제소</p>
+      </div>
+
+      <p class="text-sm text-slate-400 text-center leading-relaxed">
+        이 전광판은 관리자 전용입니다.<br>접속하려면 보안 비밀번호를 입력하십시오.
+      </p>
+
+      <div class="w-full flex flex-col gap-3">
+        <input type="password" id="login-pw-input" 
+               class="w-full bg-[#0d1117] border border-slate-700 focus:border-red-500 rounded-xl px-4 py-3.5 text-center text-2xl text-red-400 font-orbitron tracking-widest outline-none transition-all" 
+               placeholder="••••" maxlength="8">
+        
+        <button id="login-btn" 
+                class="btn w-full py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-500/20 hover:from-red-500 hover:to-rose-500 transition-all">
+          시스템 접속
+        </button>
+      </div>
+
+      <div id="login-error-msg" class="text-xs text-red-400 font-bold min-h-[1.25rem] opacity-0 transition-opacity">
+        비밀번호가 올바르지 않습니다.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const correctPw = "2525";
+      const loginScreen = document.getElementById('login-screen');
+      const mainLayout = document.getElementById('main-layout');
+      const pwInput = document.getElementById('login-pw-input');
+      const loginBtn = document.getElementById('login-btn');
+      const errorMsg = document.getElementById('login-error-msg');
+
+      function checkLogin() {
+        if (sessionStorage.getItem('scoreboard_logged_in') === 'true') {
+          loginScreen.style.display = 'none';
+          mainLayout.classList.remove('hidden');
+        } else {
+          loginScreen.style.display = 'flex';
+          mainLayout.classList.add('hidden');
+          setTimeout(() => pwInput.focus(), 100);
+        }
+      }
+
+      function handleLogin() {
+        if (pwInput.value === correctPw) {
+          sessionStorage.setItem('scoreboard_logged_in', 'true');
+          errorMsg.classList.add('opacity-0');
+          loginScreen.style.transition = 'opacity 0.4s ease';
+          loginScreen.style.opacity = '0';
+          setTimeout(() => {
+            loginScreen.style.display = 'none';
+            mainLayout.classList.remove('hidden');
+          }, 400);
+        } else {
+          pwInput.value = '';
+          errorMsg.classList.remove('opacity-0');
+          pwInput.classList.add('border-red-500', 'animate-shake');
+          setTimeout(() => {
+            pwInput.classList.remove('animate-shake');
+          }, 500);
+        }
+      }
+
+      loginBtn.addEventListener('click', handleLogin);
+      pwInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleLogin();
+      });
+
+      // Run check on load
+      checkLogin();
+    })();
+  </script>
 
   <!-- ═══════════════════ Firebase 설정 로드 ═══════════════════ -->
   <script src="firebase-config.js"></script>

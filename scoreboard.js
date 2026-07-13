@@ -17,15 +17,17 @@ const REF = {
 
 // ── 상태 ─────────────────────────────────────────────────────────────
 const state = {
-  players:      {},
-  timeLeft:     1200,
-  isActive:     false,
-  localTimer:   null,
-  localTimeLeft:1200,
+  players:        {},
+  timeLeft:       1200,
+  isActive:       false,
+  localTimer:     null,
+  localTimeLeft:  1200,
   // 알람 발화 추적 — 키를 Number로 통일
   alarmFired: { 960: false, 720: false, 480: false, 240: false, 0: false },
-  currentBannerKey: null,
-  lastSyncedTime:   1200,
+  currentBannerKey:  null,
+  lastSyncedTime:    1200,
+  originalZombies:   [],   // 쳐음 좌비로 배정된 플레이어 ID 목록
+  gameEnded:         false, // 타이머 0도달 시 true
 };
 
 // ── DOM 요소 캐시 ────────────────────────────────────────────────────
@@ -40,6 +42,7 @@ const DOM = {
   playerGrid:        document.getElementById('player-grid'),
   btnStartStop:      document.getElementById('btn-start-stop'),
   btnReset:          document.getElementById('btn-reset'),
+  btnFinalResult:    document.getElementById('btn-final-result'),
   connDot:           document.getElementById('conn-dot'),
   connText:          document.getElementById('conn-text'),
 
@@ -166,13 +169,33 @@ function updatePlayerCell(pid, data) {
   scoreEl.className   = `font-orbitron text-xs ${isZombie ? 'text-red-400/70' : 'text-cyan-400/70'}`;
 }
 
-function updateCounts() {
+// 실제 인원 우는 진원 카운트 (그손 게스X)
+function countPlayers() {
   let citizens = 0;
   let zombies  = 0;
   for (const data of Object.values(state.players)) {
     if (data.role === 'zombie') zombies++;
     else citizens++;
   }
+  return { citizens, zombies };
+}
+
+// 이모지 그리드 렌더
+// emoji: '🧑' or '🧟', count: 표시할 인원 수
+function renderEmojiGrid(containerId, emoji, count) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const span = document.createElement('span');
+    span.textContent = emoji;
+    span.style.cssText = 'font-size:1.4rem; line-height:1.5; transition:all 0.3s;';
+    el.appendChild(span);
+  }
+}
+
+// 생존 현황 화면 업데이트 (수, 이모지, 비율 바 동시)
+function renderSurvivalDisplay(citizens, zombies) {
   DOM.citizenCount.textContent = citizens;
   DOM.zombieCount.textContent  = zombies;
 
@@ -180,7 +203,14 @@ function updateCounts() {
   DOM.ratioCitizen.style.width = (citizens / total * 100).toFixed(1) + '%';
   DOM.ratioZombie.style.width  = (zombies  / total * 100).toFixed(1) + '%';
 
-  return { citizens, zombies };
+  renderEmojiGrid('citizen-emoji-grid', '🧑', citizens);
+  renderEmojiGrid('zombie-emoji-grid',  '🧟', zombies);
+}
+
+// 구 함수 이름 유지 (호환성): triggerAlarm에서 사용
+function updateCounts() {
+  const counts = countPlayers();
+  return counts;
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -271,7 +301,9 @@ function checkAlarms(timeLeft) {
 }
 
 function triggerAlarm(timePoint) {
-  const { citizens, zombies } = updateCounts();
+  // 알람 시점에 실제 현황을 실시간 조회하여 화면에 표시
+  const { citizens, zombies } = countPlayers();
+  renderSurvivalDisplay(citizens, zombies); // ← 고정된 화면 업데이트
   const label = ALARM_LABELS[timePoint] || '';
 
   flashScreen();
@@ -280,6 +312,8 @@ function triggerAlarm(timePoint) {
 
   if (timePoint === 0) {
     setTimeout(() => showGameOver(citizens, zombies), 3000);
+    // 종료 시 최종 결과 버튼 활성화
+    setTimeout(() => enableResultsButton(), 4000);
   }
 }
 
@@ -392,10 +426,15 @@ function performReset() {
     };
   }
 
+  // 쳐음 좌비로 선정된 플레이어 ID 리스트 저장 (original_zombies)
+  const originalZombieIds = Array.from(zombieSet)
+    .map(i => `P${i}`)
+    .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
+
   // ✅ FIX: interactions는 set(null)로 별도 삭제, 나머지는 update
   const rootUpdates = {
     players:    playersUpdate,
-    game_state: { time_left: 1200, is_active: false },
+    game_state: { time_left: 1200, is_active: false, original_zombies: originalZombieIds },
   };
 
   db.ref('/').update(rootUpdates)
@@ -407,6 +446,7 @@ function performReset() {
       state.localTimeLeft = 1200;
       state.timeLeft      = 1200;
       state.isActive      = false;
+      state.gameEnded     = false;
       renderTimer(1200);
       DOM.sideBanner.classList.add('hidden');
       DOM.gameOverOverlay.classList.add('hidden');
@@ -418,6 +458,8 @@ function performReset() {
         if (row) row.classList.remove('alarm-done');
         if (dot) dot.classList.remove('alarm-dot-done');
       });
+      // 최종 결과 버튼 비활성화
+      disableResultsButton();
     })
     .catch(err => console.error('[RESET ERROR]', err));
 }
@@ -439,15 +481,24 @@ DOM.btnReset.addEventListener('click', () => {
 // Firebase 실시간 리스너
 // ══════════════════════════════════════════════════════════════════════
 
-// ── 플레이어 리스너 ──────────────────────────────────────────────────
+// ── 플레이어 리스너 ──────────────────────────────────────────────────────────
 REF.players.on('value', snapshot => {
   const data = snapshot.val();
   if (!data) return;
   state.players = data;
+
+  // 플레이어 그리드 (팝업용) 는 항상 업데이트
   for (const [pid, pdata] of Object.entries(data)) {
     updatePlayerCell(pid, pdata);
   }
-  updateCounts();
+
+  // 생존 현황 표시는 게임 중에는 고정:
+  // 게임이 비활성(시작 전 or 종료 후)일 때만 실시간 반영
+  if (!state.isActive) {
+    const { citizens, zombies } = countPlayers();
+    renderSurvivalDisplay(citizens, zombies);
+  }
+  // 게임 중에는 알람 시점(triggerAlarm)에서만 화면 갱신
 });
 
 // ── 게임 상태 리스너 (단 1회만 등록) ────────────────────────────────
@@ -512,3 +563,239 @@ REF.gameState.once('value', snapshot => {
 // buildPlayerGrid()는 player-grid가 HTML에 있을 때만 동작 (null-safe)
 buildPlayerGrid();
 renderTimer(1200);
+
+// ══════════════════════════════════════════════════════════════════════
+// 플레이어 현황 팝업 제어 (전역 함수 — HTML onclick에서 호출함)
+// ══════════════════════════════════════════════════════════════════════
+function openPlayerPopup() {
+  const popup = document.getElementById('player-popup');
+  if (!popup) return;
+  // 팝업 열 때 플레이어 그리드 재빌드 (player-grid가 팝업 안에 있음)
+  buildPlayerGrid();
+  // 현재 플레이어 상태를 반영
+  for (const [pid, pdata] of Object.entries(state.players)) {
+    updatePlayerCell(pid, pdata);
+  }
+  popup.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePlayerPopup() {
+  const popup = document.getElementById('player-popup');
+  if (!popup) return;
+  popup.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+// ESC 키로 팝업 닫기
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closePlayerPopup();
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// 최종 결과 버튼 활성화 / 비활성화
+// ══════════════════════════════════════════════════════════════════════
+function enableResultsButton() {
+  state.gameEnded = true;
+  const btn = DOM.btnFinalResult;
+  if (!btn) return;
+  btn.disabled = false;
+  btn.style.pointerEvents = 'auto';
+  btn.style.opacity       = '1';
+  btn.classList.remove('opacity-30', 'cursor-not-allowed');
+  // 네온 포인트 펼스 효과
+  btn.style.animation = 'none';
+  void btn.offsetWidth;
+  btn.style.animation = 'pulse 1.5s ease-in-out infinite';
+  btn.style.boxShadow = '0 0 20px rgba(251,191,36,0.5), 0 0 40px rgba(251,191,36,0.3)';
+}
+
+function disableResultsButton() {
+  state.gameEnded = false;
+  const btn = DOM.btnFinalResult;
+  if (!btn) return;
+  btn.disabled = true;
+  btn.style.pointerEvents = 'none';
+  btn.style.opacity       = '0.3';
+  btn.style.animation     = 'none';
+  btn.style.boxShadow     = '';
+  btn.classList.add('opacity-30', 'cursor-not-allowed');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// 우승자 결정 로직
+// ══════════════════════════════════════════════════════════════════════
+function determineWinners() {
+  const { citizens, zombies } = countPlayers();
+
+  if (zombies >= citizens) {
+    // 좌비 승리 — 쳙음 좌비로 배정된 사람들
+    return {
+      type:      'zombie',
+      winners:   state.originalZombies,
+      headline:  '🧟 좌비 승리!',
+      condition: `좌비 ${zombies}명 ≥ 시민 ${citizens}명\n좌비가 세상을 정복했습니다!`,
+      message:   '🧟 쳙음 좌비로 선정된 참가자들이 우승하였습니다!',
+      color:     'red',
+    };
+  } else {
+    // 시민 승리 — 가장 높은 점수의 시민
+    const citizenEntries = Object.entries(state.players)
+      .filter(([, d]) => d.role === 'citizen')
+      .sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+
+    const maxScore = citizenEntries[0]?.[1]?.score ?? 0;
+    const topCitizens = citizenEntries
+      .filter(([, d]) => (d.score || 0) === maxScore)
+      .map(([pid]) => pid);
+
+    return {
+      type:      'citizen',
+      winners:   topCitizens,
+      headline:  '🧑 시민 승리!',
+      condition: `시민 ${citizens}명 > 좌비 ${zombies}명\n최고 승점(${maxScore}점)의 시민들이 우승합니다!`,
+      message:   '🧑 시민들이 좌비의 위협을 막아냈습니다!',
+      color:     'cyan',
+    };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// 코슈로메 라이브러리 (Canvas 기반)
+// ══════════════════════════════════════════════════════════════════════
+let confettiRAF = null;
+let confettiPieces = [];
+
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const COLORS = [
+    '#f59e0b','#ef4444','#10b981','#3b82f6',
+    '#8b5cf6','#ec4899','#fbbf24','#34d399',
+  ];
+  const COUNT = 180;
+  confettiPieces = [];
+
+  for (let i = 0; i < COUNT; i++) {
+    confettiPieces.push({
+      x:       Math.random() * canvas.width,
+      y:       Math.random() * -canvas.height,
+      w:       Math.random() * 12 + 6,
+      h:       Math.random() * 7 + 4,
+      color:   COLORS[Math.floor(Math.random() * COLORS.length)],
+      angle:   Math.random() * Math.PI * 2,
+      spin:    (Math.random() - 0.5) * 0.18,
+      vy:      Math.random() * 3 + 2,
+      vx:      (Math.random() - 0.5) * 2,
+      opacity: 1,
+    });
+  }
+
+  function drawFrame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let allGone = true;
+    for (const p of confettiPieces) {
+      p.y     += p.vy;
+      p.x     += p.vx;
+      p.angle += p.spin;
+      if (p.y < canvas.height + 20) allGone = false;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angle);
+      ctx.globalAlpha = Math.min(1, Math.max(0,
+        p.opacity - Math.max(0, (p.y - canvas.height * 0.8) / (canvas.height * 0.2))
+      ));
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (!allGone) {
+      confettiRAF = requestAnimationFrame(drawFrame);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  if (confettiRAF) cancelAnimationFrame(confettiRAF);
+  drawFrame();
+}
+
+function stopConfetti() {
+  if (confettiRAF) {
+    cancelAnimationFrame(confettiRAF);
+    confettiRAF = null;
+  }
+  const canvas = document.getElementById('confetti-canvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// 최종 결과 오버레이 열기 / 닫기
+// ══════════════════════════════════════════════════════════════════════
+function openResultsOverlay() {
+  if (!state.gameEnded) return;
+
+  const overlay = document.getElementById('results-overlay');
+  if (!overlay) return;
+
+  const result = determineWinners();
+
+  // 헤드라인 & 조건 세팅
+  const isZombie = result.type === 'zombie';
+  document.getElementById('result-headline').textContent  = result.headline;
+  document.getElementById('result-headline').className    =
+    `font-orbitron font-black text-5xl leading-tight ${
+      isZombie ? 'text-red-300 glow-red' : 'text-cyan-300 glow-cyan'
+    }`;
+  document.getElementById('result-condition').textContent = result.condition;
+  document.getElementById('result-message').textContent   = result.message;
+
+  // 우승자 및지 생성
+  const badgesEl = document.getElementById('winner-badges');
+  badgesEl.innerHTML = '';
+  for (const pid of result.winners) {
+    const badge = document.createElement('div');
+    badge.className = [
+      'font-orbitron font-black text-3xl px-6 py-4 rounded-2xl',
+      'border-2 shadow-lg',
+      isZombie
+        ? 'bg-red-900/40 border-red-400/60 text-red-200 shadow-red-500/20'
+        : 'bg-sky-900/40 border-cyan-400/60 text-cyan-200 shadow-cyan-500/20',
+    ].join(' ');
+    badge.textContent = pid;
+    badgesEl.appendChild(badge);
+  }
+
+  overlay.classList.remove('hidden');
+  overlay.style.display = 'flex';
+
+  // 코슈로메 발사
+  launchConfetti();
+
+  document.body.style.overflow = 'hidden';
+}
+
+function closeResultsOverlay() {
+  const overlay = document.getElementById('results-overlay');
+  if (overlay) {
+    overlay.classList.add('hidden');
+    overlay.style.display = '';
+  }
+  stopConfetti();
+  document.body.style.overflow = '';
+}
+
+// ESC 키로 닫기
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closePlayerPopup();
+    closeResultsOverlay();
+  }
+});

@@ -582,13 +582,14 @@
       html5QrCode.start(
         { facingMode: 'environment' },
         {
-          fps: 10,
-          qrbox: { width: 200, height: 200 },
-          aspectRatio: 1.0,
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+          fps: 15,
+          // ✅ FIX 1: qrbox 제거 → 카메라 전체 영역으로 QR 스캔
+          // qrbox가 있으면 해당 박스 밖의 QR은 절대 인식 안 됨
+          // ✅ FIX 2: experimentalFeatures 제거 → 일부 브라우저에서 콜백 실패
+          disableFlip: false,
         },
         onQrSuccess,
-        () => {} // 에러 무시
+        () => {} // 미인식 에러 무시
       ).then(() => {
         scannerRunning = true;
         dom.camDot.style.background  = '#4ade80';
@@ -600,6 +601,7 @@
         alert('카메라 접근 권한을 허용해 주세요.\n\n' + err);
       });
     }
+
 
     function stopScanner() {
       if (html5QrCode && scannerRunning) {
@@ -926,7 +928,14 @@
       scanStep = 1;
       setScanStep(1);
       showScreen('scan');
-      startScanner();
+      // ✅ FIX 3: DOM이 페인트된 후 스캐너 시작
+      // showScreen() 보여주고 즉시 startScanner() 하면
+      // 브라우저가 렌더링 전이라 #qr-reader 크기가 0px로 잡힘
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          startScanner();
+        });
+      });
     });
 
     // 스캔 취소

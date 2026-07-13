@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>시민 vs 좀비 — DURU VIRUS</title>
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Noto+Sans+KR:wght@300;400;700;900&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            orbitron: ['Orbitron', 'sans-serif'],
+            noto:     ['Noto Sans KR', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #080c10;
+      overflow-x: hidden;
+      color: #f3f4f6;
+    }
+
+    /* ── 배경 그리드 ─────────────────────────────── */
+    .bg-grid {
+      background-color: #080c10;
+      background-image:
+        linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* ── 스캔라인 ────────────────────────────────── */
+    .scanlines::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 3px,
+        rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── 글로우 효과 ────────────────────────────── */
+    .glow-cyan {
+      text-shadow: 0 0 15px #38bdf8, 0 0 30px rgba(56,189,248,0.5);
+    }
+    .glow-red {
+      text-shadow: 0 0 15px #f87171, 0 0 30px rgba(248,113,113,0.5);
+    }
+    .glow-purple {
+      text-shadow: 0 0 15px #a78bfa, 0 0 30px rgba(167,139,250,0.5);
+    }
+
+    /* ── 네온 테두리 카드 ────────────────────────── */
+    .neon-card-cyan {
+      border: 1px solid rgba(56,189,248,0.2);
+      background: rgba(13, 17, 23, 0.7);
+      box-shadow: 0 0 25px rgba(56,189,248,0.05),
+                  inset 0 0 15px rgba(56,189,248,0.02);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .neon-card-cyan:hover {
+      border-color: rgba(56,189,248,0.8);
+      box-shadow: 0 0 30px rgba(56,189,248,0.25),
+                  inset 0 0 20px rgba(56,189,248,0.1);
+      transform: translateY(-6px);
+    }
+
+    .neon-card-purple {
+      border: 1px solid rgba(167,139,250,0.2);
+      background: rgba(13, 17, 23, 0.7);
+      box-shadow: 0 0 25px rgba(167,139,250,0.05),
+                  inset 0 0 15px rgba(167,139,250,0.02);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .neon-card-purple:hover {
+      border-color: rgba(167,139,250,0.8);
+      box-shadow: 0 0 30px rgba(167,139,250,0.25),
+                  inset 0 0 20px rgba(167,139,250,0.1);
+      transform: translateY(-6px);
+    }
+
+    .neon-card-amber {
+      border: 1px solid rgba(251,191,36,0.2);
+      background: rgba(13, 17, 23, 0.7);
+      box-shadow: 0 0 25px rgba(251,191,36,0.05),
+                  inset 0 0 15px rgba(251,191,36,0.02);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .neon-card-amber:hover {
+      border-color: rgba(251,191,36,0.8);
+      box-shadow: 0 0 30px rgba(251,191,36,0.25),
+                  inset 0 0 20px rgba(251,191,36,0.1);
+      transform: translateY(-6px);
+    }
+
+    /* ── 미세 애니메이션 ─────────────────────────── */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .floating-logo {
+      animation: float 4s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-grid scanlines flex flex-col min-h-screen justify-between font-noto">
+
+  <!-- 상단 사이버 펑크 해더 데코 -->
+  <header class="w-full border-b border-gray-800/50 bg-[#0d1117]/60 backdrop-blur-md px-6 py-4 flex justify-between items-center z-10">
+    <div class="flex items-center space-x-3">
+      <div class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></div>
+      <span class="font-orbitron font-bold tracking-widest text-sm text-gray-400">DURU VIRUS SYSTEM v1.1</span>
+    </div>
+    <div class="text-xs text-gray-500 font-orbitron select-none">
+      SECURE_CONNECTION: OK
+    </div>
+  </header>
+
+  <!-- 메인 콘텐츠 구역 -->
+  <main class="flex-grow flex flex-col justify-center items-center px-4 py-12 z-10">
+    
+    <!-- 로고 및 타이틀 섹션 -->
+    <div class="text-center mb-12 select-none floating-logo">
+      <h1 class="font-orbitron font-black text-4xl sm:text-6xl tracking-wider uppercase mb-3">
+        <span class="text-sky-400 glow-cyan">DURU</span> 
+        <span class="text-red-400 glow-red">VIRUS</span>
+      </h1>
+      <p class="text-gray-400 font-bold text-lg sm:text-xl tracking-widest mt-1">시민 vs 좀비 멀티플레이어 서바이벌</p>
+      <div class="w-24 h-0.5 mx-auto bg-gradient-to-r from-sky-500 via-purple-500 to-red-500 mt-4 rounded-full"></div>
+    </div>
+
+    <!-- 카드 셀렉터 영역 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full px-4">
+      
+      <!-- 1번 카드: 역할 확인 -->
+      <a href="role-check.html" class="neon-card-cyan rounded-xl p-6 flex flex-col justify-between group h-64 cursor-pointer relative overflow-hidden">
+        <!-- 배경 데코 라인 -->
+        <div class="absolute right-0 bottom-0 text-sky-500/5 font-orbitron text-9xl font-black translate-x-4 translate-y-6 select-none group-hover:text-sky-500/10 transition-colors duration-300">01</div>
+        <div>
+          <div class="flex justify-between items-center mb-4">
+            <span class="font-orbitron text-sky-400 font-black tracking-widest text-xs border border-sky-500/30 px-2.5 py-1 rounded bg-sky-950/20">PLAYER MODE</span>
+            <span class="text-2xl group-hover:scale-110 transition-transform duration-300">🔍</span>
+          </div>
+          <h2 class="text-xl font-black text-white group-hover:text-sky-300 transition-colors duration-300 mb-2">역할 확인</h2>
+          <p class="text-gray-400 text-sm leading-relaxed">배정된 고유 역할을 확인합니다.<br>시민 혹은 좀비 여부를 파악하고 미션을 부여받으세요.</p>
+        </div>
+        <div class="flex items-center text-xs text-sky-400 font-bold tracking-wider mt-4">
+          진입하기 <span class="ml-1 group-hover:translate-x-1 transition-transform duration-300">→</span>
+        </div>
+      </a>
+
+      <!-- 2번 카드: 상호작용 -->
+      <a href="interaction.html" class="neon-card-purple rounded-xl p-6 flex flex-col justify-between group h-64 cursor-pointer relative overflow-hidden">
+        <!-- 배경 데코 라인 -->
+        <div class="absolute right-0 bottom-0 text-purple-500/5 font-orbitron text-9xl font-black translate-x-4 translate-y-6 select-none group-hover:text-purple-500/10 transition-colors duration-300">02</div>
+        <div>
+          <div class="flex justify-between items-center mb-4">
+            <span class="font-orbitron text-purple-400 font-black tracking-widest text-xs border border-purple-500/30 px-2.5 py-1 rounded bg-purple-950/20">ACTION MODE</span>
+            <span class="text-2xl group-hover:scale-110 transition-transform duration-300">⚡</span>
+          </div>
+          <h2 class="text-xl font-black text-white group-hover:text-purple-300 transition-colors duration-300 mb-2">상호작용</h2>
+          <p class="text-gray-400 text-sm leading-relaxed">모바일 스캐너를 켜고 QR 코드를 촬영하여 다른 플레이어와 상호작용(감염/백신 접촉 등)을 실행합니다.</p>
+        </div>
+        <div class="flex items-center text-xs text-purple-400 font-bold tracking-wider mt-4">
+          진입하기 <span class="ml-1 group-hover:translate-x-1 transition-transform duration-300">→</span>
+        </div>
+      </a>
+
+      <!-- 3번 카드: PC 전광판 -->
+      <a href="scoreboard.html" class="neon-card-amber rounded-xl p-6 flex flex-col justify-between group h-64 cursor-pointer relative overflow-hidden">
+        <!-- 배경 데코 라인 -->
+        <div class="absolute right-0 bottom-0 text-amber-500/5 font-orbitron text-9xl font-black translate-x-4 translate-y-6 select-none group-hover:text-amber-500/10 transition-colors duration-300">03</div>
+        <div>
+          <div class="flex justify-between items-center mb-4">
+            <span class="font-orbitron text-amber-400 font-black tracking-widest text-xs border border-amber-500/30 px-2.5 py-1 rounded bg-amber-950/20">ADMIN MODE</span>
+            <span class="text-2xl group-hover:scale-110 transition-transform duration-300">🖥️</span>
+          </div>
+          <h2 class="text-xl font-black text-white group-hover:text-amber-300 transition-colors duration-300 mb-2">PC 전광판</h2>
+          <p class="text-gray-400 text-sm leading-relaxed">게임 주최자용 실시간 현황 모니터링 화면입니다. 생존 비율, 생존자 목록 및 실시간 로그를 표시합니다.</p>
+        </div>
+        <div class="flex items-center text-xs text-amber-400 font-bold tracking-wider mt-4">
+          진입하기 <span class="ml-1 group-hover:translate-x-1 transition-transform duration-300">→</span>
+        </div>
+      </a>
+
+    </div>
+
+  </main>
+
+  <!-- 하단 풋터 데코 -->
+  <footer class="w-full border-t border-gray-800/50 bg-[#0d1117]/30 backdrop-blur-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500 z-10 space-y-2 sm:space-y-0">
+    <div>
+      © 2026 DURU VIRUS. All Rights Reserved.
+    </div>
+    <div class="flex space-x-4">
+      <span>SYSTEM STATUS: <span class="text-emerald-400 font-bold">ONLINE</span></span>
+      <span>|</span>
+      <span>SECURED BY FIREBASE</span>
+    </div>
+  </footer>
+
+</body>
+</html>

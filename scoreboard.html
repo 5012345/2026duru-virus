@@ -344,20 +344,6 @@
                          hover:from-slate-500 hover:to-slate-600">
             ↺ &nbsp;초기화 &amp; 좀비 재배정
           </button>
-
-          <!-- 최종 결과 확인 버튼 (게임 종료 시 활성화) -->
-          <button id="btn-final-result"
-                  disabled
-                  onclick="openResultsOverlay()"
-                  class="btn w-full py-3 rounded-xl text-sm font-bold
-                         bg-gradient-to-r from-yellow-600 to-amber-600
-                         text-yellow-100 border border-yellow-500/40
-                         shadow-lg shadow-yellow-500/10
-                         opacity-30 cursor-not-allowed
-                         transition-all duration-500"
-                  style="pointer-events:none;">
-            🏆 &nbsp;최종 결과 확인
-          </button>
         </div>
 
         <!-- 공지 타임라인 -->
@@ -704,56 +690,5 @@
 
   <!-- ═══════════════════ 메인 JS 로드 ═══════════════════ -->
   <script src="scoreboard.js"></script>
-  <!-- ═══════════════════ 최종 결과 오버레이 ═══════════════════ -->
-  <div id="results-overlay"
-       class="fixed inset-0 z-[500] flex-col items-center justify-center hidden">
-
-    <!-- 코슈로메 캔버스 -->
-    <canvas id="confetti-canvas" class="absolute inset-0 pointer-events-none"></canvas>
-
-    <!-- 배경 -->
-    <div class="absolute inset-0 bg-black/90"></div>
-
-    <!-- 콘텐츠 -->
-    <div class="relative z-10 flex flex-col items-center gap-8 text-center px-10 py-12 w-full max-w-5xl mx-auto">
-
-      <!-- 수상트로피 -->
-      <div class="text-6xl animate-bounce">🏆</div>
-
-      <!-- 대제목 -->
-      <div id="result-headline"
-           class="font-orbitron font-black text-5xl text-yellow-300 glow-yellow
-                  leading-tight">
-        최종 우승!
-      </div>
-
-      <!-- 우승 조건 설명 -->
-      <div id="result-condition"
-           class="text-xl text-slate-300 font-noto">
-      </div>
-
-      <!-- 우승자 및지 -->
-      <div id="winner-badges"
-           class="flex flex-wrap justify-center gap-3 max-w-3xl">
-      </div>
-
-      <!-- 축하 메시지 -->
-      <div id="result-message"
-           class="text-2xl text-yellow-200 font-noto font-bold
-                  px-6 py-3 rounded-2xl
-                  bg-yellow-500/10 border border-yellow-400/30">
-      </div>
-
-      <!-- 닫기 버튼 -->
-      <button onclick="closeResultsOverlay()"
-              class="btn px-8 py-3 rounded-xl text-sm
-                     bg-slate-700/80 border border-slate-500/50
-                     text-slate-300 hover:bg-slate-600/80 hover:text-white
-                     transition-all">
-        닫기
-      </button>
-    </div>
-  </div>
-
 </body>
 </html>

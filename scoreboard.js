@@ -133,10 +133,11 @@ const ALARM_LABELS = {
 })();
 
 // ══════════════════════════════════════════════════════════════════════
-// 플레이어 그리드 초기 빌드
+// 플레이어 그리드 초기 빌드 (player-grid DOM이 없으면 무시)
 // ══════════════════════════════════════════════════════════════════════
 function buildPlayerGrid() {
   const grid = DOM.playerGrid;
+  if (!grid) return; // 플레이어 현황 섹션이 없는 경우 안전 처리
   grid.innerHTML = '';
   for (let i = 1; i <= 30; i++) {
     const pid  = `P${i}`;
@@ -508,5 +509,6 @@ REF.gameState.once('value', snapshot => {
 });
 
 // ── 첫 빌드 ──────────────────────────────────────────────────────────
+// buildPlayerGrid()는 player-grid가 HTML에 있을 때만 동작 (null-safe)
 buildPlayerGrid();
 renderTimer(1200);

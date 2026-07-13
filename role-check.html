@@ -300,10 +300,14 @@
              style="box-shadow: inset 0 0 60px rgba(0,0,0,0.5);"></div>
       </div>
 
-      <!-- 상태 인디케이터 -->
-      <div id="scan-status"
-           class="absolute -bottom-8 left-0 right-0
-                  flex items-center justify-center gap-2">
+      </div>
+    </div>
+
+    <!-- 안내 텍스트 + 상태 인디케이터 (통합, 겹침 제거) -->
+    <div class="flex flex-col items-center gap-3 pb-2">
+
+      <!-- 카메라 상태 인디케이터 -->
+      <div id="scan-status" class="flex items-center gap-2">
         <span id="status-dot"
               class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse
                      shadow-[0_0_8px_#38bdf8]"></span>
@@ -311,13 +315,11 @@
           카메라 시작 중...
         </span>
       </div>
-    </div>
 
-    <!-- 안내 텍스트 -->
-    <div class="flex flex-col items-center gap-4 pb-2">
-      <div class="flex flex-col items-center gap-1.5">
+      <!-- 안내 문구 -->
+      <div class="flex flex-col items-center gap-1">
         <p class="text-sm text-slate-300 font-noto text-center leading-relaxed">
-          카드의 QR 코드를<br/>카메라에 비춰주세요
+          카드의 QR 코드를 카메라에 비춰주세요
         </p>
         <p class="text-xs text-slate-600 font-noto">
           결과는 본인만 확인 후 비밀로 유지하세요

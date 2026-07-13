@@ -330,73 +330,65 @@
       <!-- ══ 오른쪽 패널 (생존 현황 + 플레이어 현황) ══ -->
       <div class="col-span-8 flex flex-col gap-2.5 min-h-0">
 
-        <!-- 생존 현황 -->
-        <div class="rounded-2xl bg-[#161b22] border border-[#30363d] p-4 flex flex-col gap-2.5 shrink-0">
+        <!-- 생존 현황 (확장 버전 — 플레이어 그리드 제거) -->
+        <div class="rounded-2xl bg-[#161b22] border border-[#30363d] p-6 flex flex-col gap-5 flex-1 min-h-0">
           <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase">생존 현황</div>
 
-          <div class="grid grid-cols-2 gap-3">
-            <div class="neon-cyan rounded-xl p-3 flex items-center justify-between bg-sky-900/10">
-              <div class="flex items-center gap-1.5">
-                <span class="text-lg">👤</span>
-                <span class="text-cyan-400 text-sm font-bold glow-cyan">시민</span>
+          <!-- 시민 / 좀비 카드 (세로 확장) -->
+          <div class="flex flex-col gap-4 flex-1">
+
+            <!-- 시민 카드 -->
+            <div class="neon-cyan rounded-2xl p-5 flex items-center justify-between bg-sky-900/10 flex-1">
+              <div class="flex flex-col gap-1.5">
+                <div class="flex items-center gap-2">
+                  <span class="text-3xl">👤</span>
+                  <span class="text-cyan-400 text-xl font-bold glow-cyan font-orbitron">시민</span>
+                </div>
+                <span class="text-xs text-cyan-400/40 font-noto">CITIZENS ALIVE</span>
               </div>
-              <div class="flex items-baseline gap-1">
-                <span id="citizen-count" class="font-orbitron font-black text-4xl text-sky-400 glow-cyan">
-                  --
-                </span>
-                <span class="text-sky-400/50 text-sm">명</span>
+              <div class="flex items-baseline gap-2">
+                <span id="citizen-count" class="font-orbitron font-black text-8xl text-sky-400 glow-cyan"
+                      style="line-height:1;">--</span>
+                <span class="text-sky-400/50 text-xl">명</span>
               </div>
             </div>
 
-            <div class="neon-red rounded-xl p-3 flex items-center justify-between bg-red-900/10">
-              <div class="flex items-center gap-1.5">
-                <span class="text-lg">🧟</span>
-                <span class="text-red-400 text-sm font-bold glow-red">좀비</span>
+            <!-- 좀비 카드 -->
+            <div class="neon-red rounded-2xl p-5 flex items-center justify-between bg-red-900/10 flex-1">
+              <div class="flex flex-col gap-1.5">
+                <div class="flex items-center gap-2">
+                  <span class="text-3xl">🧟</span>
+                  <span class="text-red-400 text-xl font-bold glow-red font-orbitron">좀비</span>
+                </div>
+                <span class="text-xs text-red-400/40 font-noto">ZOMBIES ALIVE</span>
               </div>
-              <div class="flex items-baseline gap-1">
-                <span id="zombie-count" class="font-orbitron font-black text-4xl text-red-400 glow-red">
-                  --
-                </span>
-                <span class="text-red-400/50 text-sm">명</span>
+              <div class="flex items-baseline gap-2">
+                <span id="zombie-count" class="font-orbitron font-black text-8xl text-red-400 glow-red"
+                      style="line-height:1;">--</span>
+                <span class="text-red-400/50 text-xl">명</span>
               </div>
             </div>
+
           </div>
 
           <!-- 비율 바 -->
-          <div class="relative h-2.5 rounded-full overflow-hidden bg-slate-800 flex">
-            <div id="ratio-citizen"
-                 class="h-full bg-gradient-to-r from-cyan-500 to-sky-400
-                        transition-all duration-700 ease-out rounded-l-full">
+          <div class="flex flex-col gap-1.5 shrink-0">
+            <div class="relative h-4 rounded-full overflow-hidden bg-slate-800 flex">
+              <div id="ratio-citizen"
+                   class="h-full bg-gradient-to-r from-cyan-500 to-sky-400
+                          transition-all duration-700 ease-out rounded-l-full">
+              </div>
+              <div id="ratio-zombie"
+                   class="h-full bg-gradient-to-l from-red-500 to-rose-400
+                          transition-all duration-700 ease-out rounded-r-full">
+              </div>
             </div>
-            <div id="ratio-zombie"
-                 class="h-full bg-gradient-to-l from-red-500 to-rose-400
-                        transition-all duration-700 ease-out rounded-r-full">
+            <div class="flex justify-between text-[10px] text-slate-600">
+              <span class="text-cyan-400/50">시민 비율</span>
+              <span class="text-red-400/50">좀비 비율</span>
             </div>
           </div>
         </div>
-
-        <!-- 플레이어 현황 -->
-        <section class="rounded-2xl bg-[#161b22] border border-[#30363d]
-                        p-4 flex flex-col gap-3 flex-1 min-h-0">
-          <div class="flex items-center justify-between shrink-0">
-            <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase">플레이어 현황</div>
-            <div class="flex gap-3 text-xs text-slate-500">
-              <span class="flex items-center gap-1">
-                <span class="inline-block w-2.5 h-2.5 rounded-sm bg-cyan-500/40
-                             border border-cyan-400/60"></span>시민
-              </span>
-              <span class="flex items-center gap-1">
-                <span class="inline-block w-2.5 h-2.5 rounded-sm bg-red-500/40
-                             border border-red-400/60"></span>좀비
-              </span>
-            </div>
-          </div>
-
-          <!-- 그룹 레이블 + 그리드 -->
-          <div id="player-grid" class="grid grid-cols-6 gap-1.5 flex-1 min-h-0 content-start overflow-y-auto">
-            <!-- JS가 동적 생성 -->
-          </div>
-        </section>
 
       </div>
     </main>

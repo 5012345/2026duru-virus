@@ -68,6 +68,8 @@
     /* ── QR 카메라 컨테이너 ─────────────────── */
     #qr-reader {
       width: 100%;
+      /* ✅ FIX: height를 명시해야 라이브러리가 컨테이너 크기를 올바르게 인식 */
+      height: 100%;
       border: none !important;
       background: transparent !important;
     }
@@ -496,12 +498,11 @@
       });
 
       const config = {
-        fps: 12,
-        qrbox: { width: 200, height: 200 },
-        aspectRatio: 1.0,
+        fps: 15,
+        // ✅ FIX 1: qrbox 제거 → 카메라 전체 영역으로 QR 스캔
+        // qrbox가 있으면 해당 영역 밖의 QR은 인식되지 않음
+        // ✅ FIX 2: experimentalFeatures 제거 → 일부 브라우저에서 콜백 미호출 버그
         disableFlip: false,
-        // 자동 확대 없음
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
       };
 
       html5QrCode.start(

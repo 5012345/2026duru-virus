@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>상호작용 — 시민 vs 좀비</title>
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Noto+Sans+KR:wght@300;400;700;900&display=swap" rel="stylesheet" />
+
+  <!-- html5-qrcode -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- Firebase compat CDN -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            orbitron: ['Orbitron', 'sans-serif'],
+            noto:     ['Noto Sans KR', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #080c10;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── 배경 그리드 ─────────────────────────────── */
+    .bg-grid {
+      background-color: #080c10;
+      background-image:
+        linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+
+    /* ── 스캔라인 ────────────────────────────────── */
+    .scanlines::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 3px,
+        rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── 글로우 텍스트 ───────────────────────────── */
+    .glow-purple { text-shadow: 0 0 15px #a78bfa, 0 0 40px #7c3aed, 0 0 80px rgba(124,58,237,0.4); }
+    .glow-white  { text-shadow: 0 0 15px #fff, 0 0 40px rgba(255,255,255,0.35); }
+    .glow-green  { text-shadow: 0 0 12px #4ade80, 0 0 35px #22c55e, 0 0 70px rgba(34,197,94,0.4); }
+    .glow-amber  { text-shadow: 0 0 12px #fbbf24, 0 0 35px #f59e0b; }
+
+    /* ── 네온 카드 ───────────────────────────────── */
+    .neon-purple {
+      border: 1px solid rgba(167,139,250,0.3);
+      box-shadow: 0 0 20px rgba(124,58,237,0.12),
+                  inset 0 0 30px rgba(124,58,237,0.05);
+    }
+    .neon-green {
+      border: 1px solid rgba(74,222,128,0.35);
+      box-shadow: 0 0 20px rgba(34,197,94,0.15),
+                  inset 0 0 30px rgba(34,197,94,0.05);
+    }
+    .neon-amber {
+      border: 1px solid rgba(251,191,36,0.4);
+      box-shadow: 0 0 20px rgba(245,158,11,0.18),
+                  inset 0 0 30px rgba(245,158,11,0.05);
+    }
+    .neon-red {
+      border: 1px solid rgba(248,113,113,0.4);
+      box-shadow: 0 0 20px rgba(220,38,38,0.18),
+                  inset 0 0 30px rgba(220,38,38,0.05);
+    }
+
+    /* ── 메인 START 버튼 ─────────────────────────── */
+    @keyframes startButtonPulse {
+      0%,100% {
+        box-shadow: 0 0 0 0 rgba(124,58,237,0.7),
+                    0 0 40px rgba(124,58,237,0.3),
+                    0 0 80px rgba(124,58,237,0.1);
+      }
+      50% {
+        box-shadow: 0 0 0 20px rgba(124,58,237,0),
+                    0 0 60px rgba(124,58,237,0.5),
+                    0 0 120px rgba(124,58,237,0.2);
+      }
+    }
+    .start-btn {
+      animation: startButtonPulse 2.5s ease-in-out infinite;
+      cursor: pointer;
+      border: none; outline: none;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-weight: 900;
+      transition: all 0.2s ease;
+    }
+    .start-btn:active { transform: scale(0.95); }
+
+    /* ── QR 스캐너 영역 ──────────────────────────── */
+    #qr-reader {
+      width: 100% !important;
+      height: 100% !important;
+      border: none !important;
+      background: transparent !important;
+    }
+    #qr-reader > div           { border: none !important; }
+    #qr-reader img             { display: none !important; }
+    #qr-reader__dashboard      { display: none !important; }
+    #qr-reader__status_span    { display: none !important; }
+
+    #qr-reader video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      border-radius: 1rem !important;
+    }
+
+    /* ── QR 뷰파인더 프레임 ──────────────────────── */
+    .qr-frame-corner {
+      position: absolute;
+      width: 36px; height: 36px;
+      border-style: solid;
+    }
+    .qr-frame-corner.tl { top: 0; left: 0;  border-color: #a78bfa transparent transparent #a78bfa; border-width: 3px 0 0 3px; border-radius: 8px 0 0 0; }
+    .qr-frame-corner.tr { top: 0; right: 0; border-color: #a78bfa #a78bfa transparent transparent; border-width: 3px 3px 0 0; border-radius: 0 8px 0 0; }
+    .qr-frame-corner.bl { bottom: 0; left: 0;  border-color: transparent transparent #a78bfa #a78bfa; border-width: 0 0 3px 3px; border-radius: 0 0 0 8px; }
+    .qr-frame-corner.br { bottom: 0; right: 0; border-color: transparent #a78bfa #a78bfa transparent; border-width: 0 3px 3px 0; border-radius: 0 0 8px 0; }
+
+    /* ── 레이저 스캔 라인 ────────────────────────── */
+    @keyframes laserScan {
+      0%   { top: 8%;  opacity: 1; }
+      50%  { top: 88%; opacity: 0.7; }
+      100% { top: 8%;  opacity: 1; }
+    }
+    .laser-line {
+      position: absolute;
+      left: 4%; right: 4%; height: 2px;
+      background: linear-gradient(90deg, transparent, #a78bfa 20%, #c4b5fd 50%, #a78bfa 80%, transparent);
+      box-shadow: 0 0 10px #a78bfa, 0 0 25px rgba(167,139,250,0.5);
+      animation: laserScan 2.2s ease-in-out infinite;
+      z-index: 5;
+    }
+
+    /* ── 스캔 스텝 인디케이터 ────────────────────── */
+    @keyframes stepPop {
+      from { opacity: 0; transform: scale(0.8) translateY(8px); }
+      to   { opacity: 1; transform: scale(1)   translateY(0); }
+    }
+    .step-pop { animation: stepPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+    /* ── 결과 화면 ───────────────────────────────── */
+    @keyframes resultEntry {
+      from { opacity: 0; transform: scale(0.9); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .result-enter { animation: resultEntry 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+
+    /* ── 카운트다운 바 ────────────────────────────── */
+    @keyframes countdown4s { from { width: 100%; } to { width: 0%; } }
+    .countdown-4s { animation: countdown4s 4s linear forwards; }
+
+    /* ── 성공 이모지 팝 ──────────────────────────── */
+    @keyframes successPop {
+      0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+      60%  { transform: scale(1.15) rotate(5deg); opacity: 1; }
+      80%  { transform: scale(0.95) rotate(-2deg); }
+      100% { transform: scale(1) rotate(0); opacity: 1; }
+    }
+    .success-pop { animation: successPop 0.6s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+    /* ── 경고 쉐이크 ─────────────────────────────── */
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-8px); }
+      40%     { transform: translateX(8px); }
+      60%     { transform: translateX(-5px); }
+      80%     { transform: translateX(5px); }
+    }
+    .shake { animation: shake 0.5s ease-out; }
+
+    /* ── 플래시 오버레이 ─────────────────────────── */
+    @keyframes flashOut {
+      0%   { opacity: 0.7; }
+      100% { opacity: 0; }
+    }
+    #flash { position: fixed; inset: 0; z-index: 500; pointer-events: none; opacity: 0; }
+    #flash.active { animation: flashOut 0.5s ease-out forwards; }
+
+    /* ── 스캔된 카드 배지 ────────────────────────── */
+    @keyframes badgePop {
+      from { opacity: 0; transform: scale(0.5); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .badge-pop { animation: badgePop 0.35s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+    /* ── 버튼 공통 ───────────────────────────────── */
+    .btn {
+      cursor: pointer; border: none; outline: none;
+      font-family: 'Noto Sans KR', sans-serif; font-weight: 700;
+      transition: all 0.18s ease;
+    }
+    .btn:active { transform: scale(0.95); }
+
+    /* ── 태블릿 가로 최적화 ──────────────────────── */
+    @media (orientation: landscape) and (min-width: 768px) {
+      .scan-layout { flex-direction: row !important; }
+      .qr-area     { width: 45% !important; height: 100% !important; }
+      .info-area   { width: 55% !important; }
+    }
+  </style>
+</head>
+
+<body class="bg-grid scanlines">
+
+  <!-- 플래시 오버레이 -->
+  <div id="flash"></div>
+
+  <!-- ════════════════════════════════════════════════
+       [화면 A] 초기 화면 — 상호작용 시작 버튼
+  ════════════════════════════════════════════════ -->
+  <div id="screen-home"
+       class="fixed inset-0 z-10 flex flex-col items-center justify-center gap-8 px-6">
+
+    <!-- 헤더 -->
+    <div class="flex flex-col items-center gap-2">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-800
+                    flex items-center justify-center text-2xl
+                    shadow-lg shadow-violet-500/30 border border-violet-400/20">
+          🃏
+        </div>
+        <div>
+          <h1 class="font-orbitron font-black text-xl text-white glow-white tracking-widest">
+            VIRUS 2026
+          </h1>
+          <p class="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-0.5">
+            Card Interaction System
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 메인 버튼 -->
+    <div class="flex flex-col items-center gap-5">
+      <button id="btn-start"
+              class="start-btn w-56 h-56 rounded-full
+                     bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700
+                     border-2 border-violet-400/40
+                     flex flex-col items-center justify-center gap-2
+                     text-white">
+        <span class="text-4xl">🃏</span>
+        <span class="font-orbitron font-black text-lg tracking-wider">START</span>
+        <span class="font-noto text-xs text-violet-200/70 tracking-widest">상호작용 시작</span>
+      </button>
+
+      <p class="text-xs text-slate-600 font-noto text-center leading-relaxed max-w-xs">
+        두 참가자의 카드를 차례로 스캔합니다<br/>
+        카드를 가져온 순서는 상관없습니다
+      </p>
+    </div>
+
+    <!-- 연결 상태 -->
+    <div class="absolute bottom-5 left-0 right-0 flex justify-center">
+      <div class="flex items-center gap-2 px-4 py-2 rounded-full
+                  bg-slate-800/60 border border-slate-700/40 text-xs">
+        <span id="conn-dot" class="w-2 h-2 rounded-full bg-slate-600 transition-all"></span>
+        <span id="conn-text" class="text-slate-500">연결 중...</span>
+      </div>
+    </div>
+
+    <!-- 스캔 카운트 표시 (우상단) -->
+    <div class="absolute top-4 right-4 text-xs text-slate-600 font-noto text-right">
+      오늘 스캔: <span id="scan-total" class="text-slate-500 font-bold">0</span>건
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       [화면 B] QR 스캔 화면
+  ════════════════════════════════════════════════ -->
+  <div id="screen-scan"
+       class="fixed inset-0 z-20 flex-col items-center justify-between
+              py-6 px-5 hidden"
+       style="display:none;">
+
+    <!-- 상단 헤더 -->
+    <div class="flex items-center justify-between w-full max-w-2xl shrink-0">
+      <button id="btn-cancel-scan"
+              class="btn flex items-center gap-2 px-4 py-2 rounded-xl
+                     bg-slate-800/70 border border-slate-700/40
+                     text-slate-400 text-sm hover:bg-slate-700/70">
+        ← 취소
+      </button>
+
+      <!-- 스텝 인디케이터 -->
+      <div class="flex items-center gap-2">
+        <!-- 스텝 1 -->
+        <div id="step1-pill"
+             class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs
+                    bg-violet-500/20 border border-violet-400/40 text-violet-300">
+          <span id="step1-icon" class="w-4 h-4 rounded-full bg-violet-500
+                                       flex items-center justify-center text-[9px] text-white font-bold">1</span>
+          <span>1번 카드</span>
+        </div>
+        <!-- 구분선 -->
+        <div class="w-8 h-px bg-slate-700"></div>
+        <!-- 스텝 2 -->
+        <div id="step2-pill"
+             class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs
+                    bg-slate-800/60 border border-slate-700/40 text-slate-500">
+          <span id="step2-icon" class="w-4 h-4 rounded-full bg-slate-700
+                                       flex items-center justify-center text-[9px] text-white font-bold">2</span>
+          <span>2번 카드</span>
+        </div>
+      </div>
+
+      <!-- 취소 버튼 오른쪽 여백 -->
+      <div class="w-20"></div>
+    </div>
+
+    <!-- 스캔 안내 텍스트 -->
+    <div class="flex flex-col items-center gap-1 shrink-0">
+      <div id="scan-instruction"
+           class="step-pop font-orbitron font-bold text-xl text-white glow-purple">
+        1번째 카드 스캔 중...
+      </div>
+      <div class="text-xs text-slate-500">카드의 QR 코드를 카메라 프레임 안에 맞춰주세요</div>
+    </div>
+
+    <!-- 스캔된 카드 표시 -->
+    <div class="flex items-center gap-4 shrink-0">
+      <div id="card1-badge"
+           class="flex flex-col items-center gap-1 px-5 py-2.5 rounded-xl
+                  bg-slate-800/50 border border-slate-700/40 min-w-[80px] opacity-40 transition-all">
+        <span class="font-orbitron font-black text-xl text-slate-400" id="card1-id">---</span>
+        <span class="text-[10px] text-slate-600">1번 카드</span>
+      </div>
+
+      <div class="text-slate-700 text-2xl font-orbitron">+</div>
+
+      <div id="card2-badge"
+           class="flex flex-col items-center gap-1 px-5 py-2.5 rounded-xl
+                  bg-slate-800/50 border border-slate-700/40 min-w-[80px] opacity-40 transition-all">
+        <span class="font-orbitron font-black text-xl text-slate-400" id="card2-id">---</span>
+        <span class="text-[10px] text-slate-600">2번 카드</span>
+      </div>
+    </div>
+
+    <!-- 카메라 뷰 -->
+    <div class="relative w-full max-w-xs shrink-0" style="aspect-ratio:1/1;">
+      <!-- 글로우 배경 -->
+      <div class="absolute -inset-3 rounded-3xl opacity-15
+                  bg-gradient-to-br from-violet-500 to-indigo-600 blur-xl"></div>
+
+      <!-- 카메라 컨테이너 -->
+      <div class="relative w-full h-full rounded-2xl overflow-hidden
+                  border border-violet-500/15 shadow-2xl">
+        <div id="qr-reader" class="w-full h-full"></div>
+
+        <!-- 뷰파인더 코너 -->
+        <div class="qr-frame-corner tl"></div>
+        <div class="qr-frame-corner tr"></div>
+        <div class="qr-frame-corner bl"></div>
+        <div class="qr-frame-corner br"></div>
+
+        <!-- 레이저 -->
+        <div class="laser-line"></div>
+
+        <!-- 어두운 비네트 -->
+        <div class="absolute inset-0 pointer-events-none"
+             style="box-shadow: inset 0 0 60px rgba(0,0,0,0.55);"></div>
+      </div>
+
+      <!-- 카메라 상태 -->
+      <div class="absolute -bottom-7 left-0 right-0 flex items-center justify-center gap-1.5">
+        <span id="cam-dot"
+              class="w-2 h-2 rounded-full bg-violet-400 animate-pulse
+                     shadow-[0_0_6px_#a78bfa]"></span>
+        <span id="cam-text" class="text-[10px] text-violet-400/70">스캔 대기 중...</span>
+      </div>
+    </div>
+
+    <!-- 하단 여백 -->
+    <div class="h-2 shrink-0"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       [화면 C] 처리 중 로딩
+  ════════════════════════════════════════════════ -->
+  <div id="screen-loading"
+       class="fixed inset-0 z-30 hidden flex-col items-center justify-center gap-6">
+    <div class="relative">
+      <div class="w-20 h-20 rounded-full border-4 border-violet-500/20"></div>
+      <div class="absolute inset-0 w-20 h-20 rounded-full border-4 border-transparent
+                  border-t-violet-400 animate-spin"></div>
+    </div>
+    <div class="font-noto text-slate-400 text-sm tracking-wider">데이터 처리 중...</div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       [화면 D] 결과 화면
+  ════════════════════════════════════════════════ -->
+  <div id="screen-result"
+       class="fixed inset-0 z-40 hidden flex-col items-center justify-center gap-6 px-8">
+
+    <!-- 결과 카드 -->
+    <div id="result-card"
+         class="result-enter w-full max-w-sm rounded-3xl p-8
+                bg-[#0d1117] flex flex-col items-center gap-5 text-center">
+
+      <!-- 아이콘 -->
+      <div id="result-icon" class="success-pop text-6xl">✅</div>
+
+      <!-- 스캔된 카드 조합 -->
+      <div class="flex items-center gap-3">
+        <div class="px-4 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/40">
+          <span id="result-card1"
+                class="font-orbitron font-bold text-lg text-slate-300">P--</span>
+        </div>
+        <span class="text-slate-600 font-orbitron text-xl">×</span>
+        <div class="px-4 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/40">
+          <span id="result-card2"
+                class="font-orbitron font-bold text-lg text-slate-300">P--</span>
+        </div>
+      </div>
+
+      <!-- 결과 메시지 -->
+      <div id="result-title"
+           class="font-orbitron font-black text-white text-xl leading-tight">
+        두 카드의 상호작용이<br/>성공했습니다.
+      </div>
+      <div id="result-subtitle" class="font-noto text-sm text-slate-500">—</div>
+
+      <!-- 카운트다운 바 -->
+      <div class="w-full">
+        <div class="h-1 rounded-full bg-slate-800 overflow-hidden">
+          <div id="result-countdown"
+               class="h-full rounded-full bg-violet-500/50"></div>
+        </div>
+        <p class="text-[10px] text-slate-700 mt-1.5 font-noto">
+          4초 후 자동으로 처음 화면으로 돌아갑니다
+        </p>
+      </div>
+    </div>
+
+    <!-- 즉시 닫기 -->
+    <button id="btn-close-result"
+            class="btn px-6 py-2.5 rounded-full text-sm
+                   bg-slate-800/60 border border-slate-700/40
+                   text-slate-400 hover:text-white hover:bg-slate-700/60">
+      지금 닫기
+    </button>
+  </div>
+
+  <!-- Firebase 설정 -->
+  <script src="firebase-config.js"></script>
+
+  <!-- 메인 로직 -->
+  <script>
+  (function () {
+    'use strict';
+
+    // ── Firebase 초기화 ──────────────────────────────
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ── DOM ─────────────────────────────────────────
+    const screens = {
+      home:    document.getElementById('screen-home'),
+      scan:    document.getElementById('screen-scan'),
+      loading: document.getElementById('screen-loading'),
+      result:  document.getElementById('screen-result'),
+    };
+
+    const dom = {
+      btnStart:       document.getElementById('btn-start'),
+      btnCancelScan:  document.getElementById('btn-cancel-scan'),
+      btnCloseResult: document.getElementById('btn-close-result'),
+
+      scanInstruction: document.getElementById('scan-instruction'),
+      camDot:          document.getElementById('cam-dot'),
+      camText:         document.getElementById('cam-text'),
+
+      step1Pill: document.getElementById('step1-pill'),
+      step2Pill: document.getElementById('step2-pill'),
+      step1Icon: document.getElementById('step1-icon'),
+      step2Icon: document.getElementById('step2-icon'),
+
+      card1Badge: document.getElementById('card1-badge'),
+      card2Badge: document.getElementById('card2-badge'),
+      card1Id:    document.getElementById('card1-id'),
+      card2Id:    document.getElementById('card2-id'),
+
+      resultCard:      document.getElementById('result-card'),
+      resultIcon:      document.getElementById('result-icon'),
+      resultCard1:     document.getElementById('result-card1'),
+      resultCard2:     document.getElementById('result-card2'),
+      resultTitle:     document.getElementById('result-title'),
+      resultSubtitle:  document.getElementById('result-subtitle'),
+      resultCountdown: document.getElementById('result-countdown'),
+
+      connDot:    document.getElementById('conn-dot'),
+      connText:   document.getElementById('conn-text'),
+      scanTotal:  document.getElementById('scan-total'),
+
+      flash: document.getElementById('flash'),
+    };
+
+    // ── 상태 ────────────────────────────────────────
+    let html5QrCode  = null;
+    let scanStep     = 0;     // 0=대기, 1=첫번째 스캔중, 2=두번째 스캔중
+    let scannedCards = [];    // [pid1, pid2]
+    let processing   = false;
+    let autoResetTimer = null;
+    let sessionScanCount = 0;
+    let scannerRunning = false;
+    let debounceTimer  = null;
+
+    const VALID_QR = /^P([1-9]|[12][0-9]|30)$/;
+
+    // ── 연결 상태 ────────────────────────────────────
+    db.ref('.info/connected').on('value', snap => {
+      if (snap.val() === true) {
+        dom.connDot.style.cssText = 'background:#4ade80;box-shadow:0 0 6px #4ade80;';
+        dom.connText.textContent  = 'Firebase 연결됨';
+        dom.connText.style.color  = '#86efac';
+      } else {
+        dom.connDot.style.cssText = 'background:#f87171;box-shadow:0 0 6px #f87171;';
+        dom.connText.textContent  = '연결 끊김';
+        dom.connText.style.color  = '#fca5a5';
+      }
+    });
+
+    // ════════════════════════════════════════════════
+    // 화면 전환
+    // ════════════════════════════════════════════════
+    function showScreen(name) {
+      Object.entries(screens).forEach(([k, el]) => {
+        if (k === name) {
+          el.classList.remove('hidden');
+          el.style.display = 'flex';
+        } else {
+          el.classList.add('hidden');
+          el.style.display = 'none';
+        }
+      });
+    }
+
+    // ════════════════════════════════════════════════
+    // QR 스캐너
+    // ════════════════════════════════════════════════
+    function startScanner() {
+      if (html5QrCode && scannerRunning) return;
+
+      html5QrCode = new Html5Qrcode('qr-reader', {
+        verbose: false,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      });
+
+      html5QrCode.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 200, height: 200 },
+          aspectRatio: 1.0,
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        },
+        onQrSuccess,
+        () => {} // 에러 무시
+      ).then(() => {
+        scannerRunning = true;
+        dom.camDot.style.background  = '#4ade80';
+        dom.camDot.style.boxShadow   = '0 0 8px #4ade80';
+        dom.camText.textContent      = 'QR 코드를 비춰주세요';
+        dom.camText.style.color      = 'rgba(134,239,172,0.9)';
+      }).catch(err => {
+        console.error('카메라 시작 실패:', err);
+        alert('카메라 접근 권한을 허용해 주세요.\n\n' + err);
+      });
+    }
+
+    function stopScanner() {
+      if (html5QrCode && scannerRunning) {
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+          html5QrCode = null;
+          scannerRunning = false;
+        }).catch(() => {
+          html5QrCode = null;
+          scannerRunning = false;
+        });
+      }
+    }
+
+    // ── QR 성공 콜백 ─────────────────────────────────
+    function onQrSuccess(decodedText) {
+      if (processing) return;
+
+      const pid = decodedText.trim();
+      if (!VALID_QR.test(pid)) return;
+
+      // 중복 스캔 방지 (같은 카드를 두 번 찍는 경우)
+      if (scannedCards.includes(pid)) {
+        showCamFeedback('동일한 카드입니다! 다른 카드를 스캔해 주세요.', false);
+        return;
+      }
+
+      // 디바운스 (빠른 연속 인식 방지)
+      if (debounceTimer) return;
+      debounceTimer = setTimeout(() => { debounceTimer = null; }, 1200);
+
+      // 플래시
+      triggerFlash('#a78bfa');
+
+      if (scanStep === 1) {
+        // 첫 번째 카드 등록
+        scannedCards.push(pid);
+        dom.card1Id.textContent = pid;
+        dom.card1Badge.classList.remove('opacity-40');
+        dom.card1Badge.classList.add('badge-pop', 'neon-purple');
+        // ✅ FIX: span 자식 중 마지막(라벨) 요소를 안전하게 선택
+        const label1 = dom.card1Badge.querySelector('span:last-child');
+        if (label1) label1.style.color = '#c4b5fd';
+
+        // 두 번째 스캔으로 전환
+        setScanStep(2);
+
+      } else if (scanStep === 2) {
+        // 두 번째 카드 등록
+        scannedCards.push(pid);
+        dom.card2Id.textContent = pid;
+        dom.card2Badge.classList.remove('opacity-40');
+        dom.card2Badge.classList.add('badge-pop', 'neon-purple');
+        // ✅ FIX: span 자식 중 마지막(라벨) 요소를 안전하게 선택
+        const label2 = dom.card2Badge.querySelector('span:last-child');
+        if (label2) label2.style.color = '#c4b5fd';
+
+        // 처리 시작 (스캐너 일시정지 후 Firebase 처리)
+        processing = true;
+        if (html5QrCode && scannerRunning) html5QrCode.pause(true);
+        setTimeout(() => processInteraction(scannedCards[0], scannedCards[1]), 400);
+      }
+    }
+
+    function showCamFeedback(msg, isOk) {
+      dom.camText.textContent   = msg;
+      dom.camText.style.color   = isOk ? 'rgba(134,239,172,0.9)' : 'rgba(252,165,165,0.9)';
+      dom.camDot.style.background = isOk ? '#4ade80' : '#f87171';
+    }
+
+    function setScanStep(step) {
+      scanStep = step;
+
+      if (step === 1) {
+        dom.scanInstruction.textContent = '1번째 카드 스캔 중...';
+        dom.scanInstruction.classList.remove('step-pop');
+        void dom.scanInstruction.offsetWidth;
+        dom.scanInstruction.classList.add('step-pop');
+
+        // 스텝 1 활성화
+        dom.step1Pill.className = dom.step1Pill.className
+          .replace('bg-slate-800/60 border-slate-700/40 text-slate-500',
+                   'bg-violet-500/20 border-violet-400/40 text-violet-300');
+        dom.step1Icon.className = dom.step1Icon.className
+          .replace('bg-slate-700', 'bg-violet-500');
+
+      } else if (step === 2) {
+        dom.scanInstruction.textContent = '2번째 카드 스캔 중...';
+        dom.scanInstruction.classList.remove('step-pop');
+        void dom.scanInstruction.offsetWidth;
+        dom.scanInstruction.classList.add('step-pop');
+
+        // 스텝 1 완료 → 스텝 2 활성화
+        dom.step1Pill.className = dom.step1Pill.className
+          .replace('bg-violet-500/20 border-violet-400/40 text-violet-300',
+                   'bg-green-500/15 border-green-400/30 text-green-400');
+        dom.step1Icon.textContent = '✓';
+        dom.step1Icon.className = dom.step1Icon.className
+          .replace('bg-violet-500', 'bg-green-500');
+
+        dom.step2Pill.className = dom.step2Pill.className
+          .replace('bg-slate-800/60 border-slate-700/40 text-slate-500',
+                   'bg-violet-500/20 border-violet-400/40 text-violet-300');
+        dom.step2Icon.className = dom.step2Icon.className
+          .replace('bg-slate-700', 'bg-violet-500');
+
+        dom.camText.textContent = 'QR 코드를 비춰주세요';
+        dom.camDot.style.background = '#a78bfa';
+        dom.camDot.style.boxShadow  = '0 0 8px #a78bfa';
+      }
+    }
+
+    // ════════════════════════════════════════════════
+    // 상호작용 처리 (Firebase)
+    // ════════════════════════════════════════════════
+    async function processInteraction(pid1, pid2) {
+      showScreen('loading');
+
+      // 상호작용 키 정규화 (작은 번호 항상 앞)
+      const num1 = parseInt(pid1.slice(1));
+      const num2 = parseInt(pid2.slice(1));
+      const [smaller, larger] = num1 < num2 ? [pid1, pid2] : [pid2, pid1];
+      const interactionKey = `${smaller}_${larger}`;
+
+      try {
+        // ── 중복 여부 조회 ────────────────────────────
+        const interSnap = await db.ref(`interactions/${interactionKey}`).once('value');
+        const alreadyDone = interSnap.exists() && interSnap.val() === true;
+
+        if (alreadyDone) {
+          // ── 중복: 아무것도 바꾸지 않음 ─────────────
+          showResult(pid1, pid2, false);
+          return;
+        }
+
+        // ── 신규: 두 플레이어 데이터 조회 ───────────
+        const [snap1, snap2] = await Promise.all([
+          db.ref(`players/${pid1}`).once('value'),
+          db.ref(`players/${pid2}`).once('value'),
+        ]);
+
+        const p1 = snap1.val();
+        const p2 = snap2.val();
+
+        if (!p1 || !p2) {
+          throw new Error('플레이어 데이터가 없습니다. 게임을 초기화해 주세요.');
+        }
+
+        const role1 = p1.role;
+        const role2 = p2.role;
+
+        // ── 상호작용 규칙 적용 ────────────────────────
+        const updates = {};
+
+        // 1. 반드시 먼저 상호작용 기록 저장
+        updates[`interactions/${interactionKey}`] = true;
+
+        if (role1 === 'citizen' && role2 === 'citizen') {
+          // C + C → 각각 +1점
+          updates[`players/${pid1}/score`] = (p1.score || 0) + 1;
+          updates[`players/${pid2}/score`] = (p2.score || 0) + 1;
+
+        } else if (role1 === 'zombie' && role2 === 'zombie') {
+          // Z + Z → 아무 변화 없음 (상호작용 기록만)
+
+        } else {
+          // C + Z 또는 Z + C → 시민 플레이어의 role을 'zombie'로 변경
+          if (role1 === 'citizen') {
+            updates[`players/${pid1}/role`] = 'zombie';
+          } else {
+            updates[`players/${pid2}/role`] = 'zombie';
+          }
+          // 점수 변화 없음
+        }
+
+        // ── DB 원자적 업데이트 ────────────────────────
+        await db.ref('/').update(updates);
+
+        sessionScanCount++;
+        dom.scanTotal.textContent = sessionScanCount;
+
+        // ── 성공 결과 표시 ────────────────────────────
+        showResult(pid1, pid2, true);
+
+      } catch (err) {
+        console.error('[processInteraction]', err);
+        showResult(pid1, pid2, null, String(err));
+      }
+    }
+
+    // ════════════════════════════════════════════════
+    // 결과 화면 표시
+    //  isNew: true=신규, false=중복, null=에러
+    // ════════════════════════════════════════════════
+    function showResult(pid1, pid2, isNew, errMsg) {
+      showScreen('result');
+
+      dom.resultCard1.textContent = pid1;
+      dom.resultCard2.textContent = pid2;
+
+      // 결과 카드 테두리 초기화
+      dom.resultCard.className = dom.resultCard.className
+        .replace(/neon-\w+/g, '');
+
+      if (isNew === true) {
+        // ── 성공 ──────────────────────────────────
+        dom.resultCard.classList.add('neon-green');
+        dom.resultIcon.textContent    = '✅';
+        dom.resultTitle.innerHTML     = '두 카드의 상호작용이<br/>성공했습니다.';
+        dom.resultTitle.style.color   = '#fff';
+        dom.resultSubtitle.textContent= '상호작용이 정상적으로 처리되었습니다';
+        dom.resultSubtitle.style.color= 'rgba(74,222,128,0.6)';
+        dom.resultCountdown.className =
+          'h-full rounded-full bg-green-500/50 countdown-4s';
+
+      } else if (isNew === false) {
+        // ── 중복 ──────────────────────────────────
+        dom.resultCard.classList.add('neon-amber');
+        dom.resultIcon.textContent    = '⚠️';
+        dom.resultTitle.innerHTML     = '이미 상호작용한<br/>카드입니다.';
+        dom.resultTitle.style.color   = '#fbbf24';
+        dom.resultSubtitle.textContent= '이 두 카드는 이전에 이미 상호작용을 완료했습니다';
+        dom.resultSubtitle.style.color= 'rgba(251,191,36,0.5)';
+        dom.resultCountdown.className =
+          'h-full rounded-full bg-amber-500/50 countdown-4s';
+
+        // 쉐이크 애니메이션
+        dom.resultCard.classList.remove('shake');
+        void dom.resultCard.offsetWidth;
+        dom.resultCard.classList.add('shake');
+
+      } else {
+        // ── 에러 ──────────────────────────────────
+        dom.resultCard.classList.add('neon-red');
+        dom.resultIcon.textContent    = '❌';
+        dom.resultTitle.innerHTML     = '오류가 발생했습니다';
+        dom.resultTitle.style.color   = '#f87171';
+        dom.resultSubtitle.textContent= errMsg || '알 수 없는 오류';
+        dom.resultSubtitle.style.color= 'rgba(248,113,113,0.5)';
+        dom.resultCountdown.className =
+          'h-full rounded-full bg-red-500/50 countdown-4s';
+      }
+
+      // 아이콘 애니메이션 재실행
+      dom.resultIcon.classList.remove('success-pop');
+      void dom.resultIcon.offsetWidth;
+      dom.resultIcon.classList.add('success-pop');
+
+      // 카운트다운 바 재실행
+      const bar = dom.resultCountdown;
+      bar.style.animation = 'none';
+      void bar.offsetWidth;
+      bar.style.animation = '';
+
+      // 4초 후 자동 리셋
+      clearTimeout(autoResetTimer);
+      autoResetTimer = setTimeout(() => goHome(), 4000);
+    }
+
+    // ════════════════════════════════════════════════
+    // 홈으로 돌아가기
+    // ════════════════════════════════════════════════
+    function goHome() {
+      clearTimeout(autoResetTimer);
+      scannedCards  = [];
+      processing    = false;
+      scanStep      = 0;
+      debounceTimer = null;
+
+      // 배지 초기화
+      dom.card1Id.textContent = '---';
+      dom.card2Id.textContent = '---';
+
+      // ✅ FIX: className 조작 시 공백 남지 않도록 trim 적용
+      dom.card1Badge.className = dom.card1Badge.className
+        .replace('badge-pop', '').replace('neon-purple', '').trim();
+      dom.card2Badge.className = dom.card2Badge.className
+        .replace('badge-pop', '').replace('neon-purple', '').trim();
+
+      dom.card1Badge.classList.add('opacity-40');
+      dom.card2Badge.classList.add('opacity-40');
+
+      // ✅ FIX: 라벨 span 색상 초기화 (안전한 선택자)
+      const lbl1 = dom.card1Badge.querySelector('span:last-child');
+      const lbl2 = dom.card2Badge.querySelector('span:last-child');
+      if (lbl1) lbl1.style.color = '';
+      if (lbl2) lbl2.style.color = '';
+
+      // 스텝 인디케이터 초기화
+      resetStepPills();
+
+      showScreen('home');
+    }
+
+    function resetStepPills() {
+      dom.step1Pill.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs ' +
+        'bg-slate-800/60 border border-slate-700/40 text-slate-500';
+      dom.step1Icon.className = 'w-4 h-4 rounded-full bg-slate-700 ' +
+        'flex items-center justify-center text-[9px] text-white font-bold';
+      dom.step1Icon.textContent = '1';
+
+      dom.step2Pill.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs ' +
+        'bg-slate-800/60 border border-slate-700/40 text-slate-500';
+      dom.step2Icon.className = 'w-4 h-4 rounded-full bg-slate-700 ' +
+        'flex items-center justify-center text-[9px] text-white font-bold';
+      dom.step2Icon.textContent = '2';
+    }
+
+    // ── 플래시 ───────────────────────────────────────
+    function triggerFlash(color) {
+      dom.flash.style.background = color + '66';
+      dom.flash.classList.remove('active');
+      void dom.flash.offsetWidth;
+      dom.flash.classList.add('active');
+    }
+
+    // ════════════════════════════════════════════════
+    // 이벤트 바인딩
+    // ════════════════════════════════════════════════
+
+    // 시작 버튼
+    dom.btnStart.addEventListener('click', () => {
+      goHome(); // 상태 초기화
+      scanStep = 1;
+      setScanStep(1);
+      showScreen('scan');
+      startScanner();
+    });
+
+    // 스캔 취소
+    dom.btnCancelScan.addEventListener('click', () => {
+      stopScanner();
+      goHome();
+    });
+
+    // 결과 닫기 (결과 화면에서 홈으로 — 스캐너는 이미 pause 상태)
+    dom.btnCloseResult.addEventListener('click', () => {
+      // ✅ FIX: 결과 화면 진입 시 스캐너는 pause 또는 이미 중단된 상태
+      // stop()은 다음 번 START 버튼 클릭 시 재시작됨
+      if (html5QrCode && scannerRunning) {
+        stopScanner();
+      }
+      goHome();
+    });
+
+    // ════════════════════════════════════════════════
+    // 초기 화면 설정
+    // ════════════════════════════════════════════════
+    showScreen('home');
+
+    // 페이지 숨김 시 스캐너 일시정지
+    document.addEventListener('visibilitychange', () => {
+      if (!html5QrCode || !scannerRunning) return;
+      if (document.hidden) {
+        html5QrCode.pause(true);
+      } else if (!processing) {
+        html5QrCode.resume();
+      }
+    });
+
+  })();
+  </script>
+</body>
+</html>

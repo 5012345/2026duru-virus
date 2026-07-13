@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>시민 vs 좀비 — PC 전광판</title>
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+KR:wght@400;700;900&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Firebase App (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <!-- Firebase Realtime Database (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            orbitron: ['Orbitron', 'sans-serif'],
+            noto: ['Noto Sans KR', 'sans-serif'],
+          },
+          colors: {
+            citizen: {
+              DEFAULT: '#38bdf8',
+              dark:    '#0369a1',
+              glow:    '#7dd3fc',
+            },
+            zombie: {
+              DEFAULT: '#f87171',
+              dark:    '#991b1b',
+              glow:    '#fca5a5',
+            },
+            panel: {
+              bg:     '#0d1117',
+              card:   '#161b22',
+              border: '#30363d',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      font-family: 'Noto Sans KR', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      user-select: none;
+    }
+
+    /* 스캔라인 효과 */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* 배경 그리드 */
+    .bg-grid {
+      background-image:
+        linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* 네온 글로우 */
+    .glow-cyan  { text-shadow: 0 0 10px #38bdf8, 0 0 30px #38bdf8, 0 0 60px #0ea5e9; }
+    .glow-red   { text-shadow: 0 0 10px #f87171, 0 0 30px #ef4444, 0 0 60px #dc2626; }
+    .glow-white { text-shadow: 0 0 10px #fff, 0 0 30px rgba(255,255,255,0.5); }
+    .glow-yellow{ text-shadow: 0 0 10px #fbbf24, 0 0 30px #f59e0b, 0 0 60px #d97706; }
+
+    /* 네온 보더 카드 */
+    .neon-cyan {
+      border: 1px solid rgba(56,189,248,0.4);
+      box-shadow: 0 0 15px rgba(56,189,248,0.12), inset 0 0 25px rgba(56,189,248,0.04);
+    }
+    .neon-red {
+      border: 1px solid rgba(248,113,113,0.4);
+      box-shadow: 0 0 15px rgba(248,113,113,0.12), inset 0 0 25px rgba(248,113,113,0.04);
+    }
+    .neon-yellow {
+      border: 1px solid rgba(250,204,21,0.45);
+      box-shadow: 0 0 20px rgba(250,204,21,0.18), inset 0 0 35px rgba(250,204,21,0.04);
+    }
+
+    /* 타이머 */
+    .timer-digit {
+      font-family: 'Orbitron', monospace;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      line-height: 1;
+    }
+
+    @keyframes dangerPulse {
+      0%,100% { color: #fbbf24; text-shadow: 0 0 10px #fbbf24, 0 0 30px #f59e0b; }
+      50%      { color: #ef4444; text-shadow: 0 0 15px #ef4444, 0 0 40px #dc2626; }
+    }
+    .timer-danger { animation: dangerPulse 0.8s ease-in-out infinite; }
+
+    /* 버튼 */
+    .btn {
+      cursor: pointer;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-weight: 700;
+      transition: all 0.18s ease;
+      border: none; outline: none;
+    }
+    .btn:active { transform: scale(0.96); }
+
+    /* 플레이어 셀 */
+    .player-cell {
+      transition: all 0.45s cubic-bezier(0.34,1.56,0.64,1);
+      position: relative; overflow: hidden;
+    }
+    .player-cell::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .player-citizen {
+      background: linear-gradient(135deg, rgba(14,165,233,0.14) 0%, rgba(56,189,248,0.05) 100%);
+      border: 1px solid rgba(56,189,248,0.38);
+    }
+    .player-zombie {
+      background: linear-gradient(135deg, rgba(220,38,38,0.18) 0%, rgba(248,113,113,0.06) 100%);
+      border: 1px solid rgba(248,113,113,0.38);
+    }
+
+    /* 진행 바 */
+    @keyframes progressShimmer {
+      0%   { background-position: -200% center; }
+      100% { background-position:  200% center; }
+    }
+    .progress-bar { transition: width 1s linear; }
+
+    @keyframes dangerBar {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.65; }
+    }
+    .progress-danger { animation: dangerBar 0.8s ease-in-out infinite; }
+
+    /* 알람 팝업 */
+    @keyframes alarmEntry {
+      from { opacity: 0; transform: translateY(-60px) scale(0.93); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes alarmBorder {
+      0%,100% { border-color: rgba(250,204,21,0.8); box-shadow: 0 0 30px rgba(250,204,21,0.35), 0 0 80px rgba(250,204,21,0.15); }
+      50%      { border-color: rgba(239,68,68,0.8);  box-shadow: 0 0 30px rgba(239,68,68,0.35),  0 0 80px rgba(239,68,68,0.15); }
+    }
+    .alarm-popup {
+      animation: alarmEntry 0.5s cubic-bezier(0.16,1,0.3,1) both,
+                 alarmBorder 1.2s ease-in-out infinite;
+    }
+
+    /* 사이드 배너 */
+    @keyframes bannerSlide {
+      from { transform: translateX(110%); opacity: 0; }
+      to   { transform: translateX(0);   opacity: 1; }
+    }
+    .side-banner { animation: bannerSlide 0.55s cubic-bezier(0.16,1,0.3,1) both; }
+
+    /* 화면 플래시 */
+    @keyframes screenFlash {
+      0%  { opacity: 0.75; }
+      20% { opacity: 0; }
+      40% { opacity: 0.5; }
+      60% { opacity: 0; }
+      80% { opacity: 0.3; }
+      100%{ opacity: 0; }
+    }
+    .screen-flash { animation: screenFlash 1.4s ease-out both; }
+
+    /* 알람 타임라인 활성화 */
+    .alarm-done {
+      background: rgba(250,204,21,0.06) !important;
+      border-color: rgba(250,204,21,0.3) !important;
+    }
+    .alarm-dot-done { background: #fbbf24 !important; box-shadow: 0 0 6px #fbbf24; }
+
+    /* 파티클 캔버스 */
+    #particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  </style>
+</head>
+
+<body class="bg-grid relative">
+  <canvas id="particles"></canvas>
+
+  <!-- 화면 플래시 오버레이 -->
+  <div id="flash-overlay"
+       class="fixed inset-0 bg-yellow-300 pointer-events-none z-[100] opacity-0 hidden"></div>
+
+  <!-- ═══════════════════ 메인 레이아웃 ═══════════════════ -->
+  <div class="relative z-10 flex flex-col h-screen p-3 gap-2.5">
+
+    <!-- 헤더 -->
+    <header class="flex items-center justify-between shrink-0 px-1">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-orange-600
+                    flex items-center justify-center text-2xl shadow-lg
+                    shadow-red-500/30 border border-red-400/25">🧟</div>
+        <div>
+          <h1 class="font-orbitron font-black text-xl text-white glow-white tracking-widest">
+            VIRUS 2026
+          </h1>
+          <p class="text-xs text-slate-500 tracking-wider">시민 vs 좀비 — 실시간 전광판</p>
+        </div>
+      </div>
+      <div id="connection-indicator"
+           class="flex items-center gap-2 px-3 py-1.5 rounded-full
+                  bg-slate-800/60 border border-slate-700/50 text-xs">
+        <span id="conn-dot" class="w-2 h-2 rounded-full bg-slate-500 transition-colors"></span>
+        <span id="conn-text" class="text-slate-400">연결 중...</span>
+      </div>
+    </header>
+
+    <!-- 본문 -->
+    <main class="flex-1 grid grid-cols-12 gap-2.5 min-h-0">
+
+      <!-- ══ 왼쪽 패널 ══ -->
+      <aside class="col-span-4 flex flex-col gap-2.5">
+
+        <!-- 타이머 카드 -->
+        <div class="neon-yellow rounded-2xl bg-[#161b22] p-4 flex flex-col items-center gap-2 shrink-0">
+          <div class="text-[10px] tracking-[0.35em] text-yellow-400/70 uppercase">남은 시간</div>
+          <div id="timer-display" class="timer-digit text-[5.5rem] text-yellow-300 glow-yellow">
+            20:00
+          </div>
+          <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div id="progress-bar"
+                 class="h-full rounded-full progress-bar
+                        bg-gradient-to-r from-green-400 via-yellow-400 to-red-500"
+                 style="width:100%"></div>
+          </div>
+          <div class="text-[10px] text-slate-600">
+            경과 <span id="elapsed-display" class="text-yellow-400/80 font-bold">0</span>초
+            / 총 1200초
+          </div>
+        </div>
+
+        <!-- 컨트롤 버튼 -->
+        <div class="rounded-2xl bg-[#161b22] border border-[#30363d] p-4 flex flex-col gap-2 shrink-0">
+          <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase mb-0.5">게임 제어</div>
+          <button id="btn-start-stop"
+                  class="btn w-full py-3 rounded-xl text-sm
+                         bg-gradient-to-r from-emerald-500 to-teal-500
+                         text-white shadow-lg shadow-emerald-500/20
+                         hover:shadow-emerald-400/35 hover:from-emerald-400 hover:to-teal-400">
+            ▶ &nbsp;게임 시작
+          </button>
+          <button id="btn-reset"
+                  class="btn w-full py-2.5 rounded-xl text-sm
+                         bg-gradient-to-r from-slate-600 to-slate-700
+                         text-slate-200 border border-slate-500/30
+                         hover:from-slate-500 hover:to-slate-600">
+            ↺ &nbsp;초기화 &amp; 좀비 재배정
+          </button>
+        </div>
+
+        <!-- 생존 현황 -->
+        <div class="rounded-2xl bg-[#161b22] border border-[#30363d] p-4 flex flex-col gap-2.5 shrink-0">
+          <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase">생존 현황</div>
+
+          <div class="neon-cyan rounded-xl p-3 flex items-center justify-between
+                      bg-sky-900/10">
+            <div class="flex items-center gap-1.5">
+              <span class="text-lg">👤</span>
+              <span class="text-cyan-400 text-sm font-bold glow-cyan">시민</span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="citizen-count" class="font-orbitron font-black text-4xl text-sky-400 glow-cyan">
+                --
+              </span>
+              <span class="text-sky-400/50 text-sm">명</span>
+            </div>
+          </div>
+
+          <div class="neon-red rounded-xl p-3 flex items-center justify-between
+                      bg-red-900/10">
+            <div class="flex items-center gap-1.5">
+              <span class="text-lg">🧟</span>
+              <span class="text-red-400 text-sm font-bold glow-red">좀비</span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="zombie-count" class="font-orbitron font-black text-4xl text-red-400 glow-red">
+                --
+              </span>
+              <span class="text-red-400/50 text-sm">명</span>
+            </div>
+          </div>
+
+          <!-- 비율 바 -->
+          <div class="relative h-2.5 rounded-full overflow-hidden bg-slate-800 flex">
+            <div id="ratio-citizen"
+                 class="h-full bg-gradient-to-r from-cyan-500 to-sky-400
+                        transition-all duration-700 ease-out rounded-l-full">
+            </div>
+            <div id="ratio-zombie"
+                 class="h-full bg-gradient-to-l from-red-500 to-rose-400
+                        transition-all duration-700 ease-out rounded-r-full">
+            </div>
+          </div>
+        </div>
+
+        <!-- 공지 타임라인 -->
+        <div class="rounded-2xl bg-[#161b22] border border-[#30363d] p-4 flex flex-col gap-2 flex-1 min-h-0">
+          <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase">공지 일정</div>
+          <div class="flex flex-col gap-1.5 overflow-y-auto">
+            <div id="alarm-row-16" class="flex items-center gap-2 p-2 rounded-lg
+                                          bg-slate-800/30 border border-slate-700/30 transition-all">
+              <div id="alarm-dot-16" class="w-2 h-2 rounded-full bg-slate-600 shrink-0 transition-all"></div>
+              <span class="text-xs text-slate-500">남은 시간 16분</span>
+              <span class="ml-auto font-orbitron text-xs text-slate-600">16:00</span>
+            </div>
+            <div id="alarm-row-12" class="flex items-center gap-2 p-2 rounded-lg
+                                          bg-slate-800/30 border border-slate-700/30 transition-all">
+              <div id="alarm-dot-12" class="w-2 h-2 rounded-full bg-slate-600 shrink-0 transition-all"></div>
+              <span class="text-xs text-slate-500">남은 시간 12분</span>
+              <span class="ml-auto font-orbitron text-xs text-slate-600">12:00</span>
+            </div>
+            <div id="alarm-row-8" class="flex items-center gap-2 p-2 rounded-lg
+                                          bg-slate-800/30 border border-slate-700/30 transition-all">
+              <div id="alarm-dot-8" class="w-2 h-2 rounded-full bg-slate-600 shrink-0 transition-all"></div>
+              <span class="text-xs text-slate-500">남은 시간 8분</span>
+              <span class="ml-auto font-orbitron text-xs text-slate-600">8:00</span>
+            </div>
+            <div id="alarm-row-4" class="flex items-center gap-2 p-2 rounded-lg
+                                          bg-slate-800/30 border border-slate-700/30 transition-all">
+              <div id="alarm-dot-4" class="w-2 h-2 rounded-full bg-slate-600 shrink-0 transition-all"></div>
+              <span class="text-xs text-slate-500">남은 시간 4분</span>
+              <span class="ml-auto font-orbitron text-xs text-slate-600">4:00</span>
+            </div>
+            <div id="alarm-row-0" class="flex items-center gap-2 p-2 rounded-lg
+                                          bg-slate-800/30 border border-slate-700/30 transition-all">
+              <div id="alarm-dot-0" class="w-2 h-2 rounded-full bg-slate-600 shrink-0 transition-all"></div>
+              <span class="text-xs text-slate-500">게임 종료 (0분)</span>
+              <span class="ml-auto font-orbitron text-xs text-slate-600">0:00</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ══ 오른쪽: 플레이어 그리드 ══ -->
+      <section class="col-span-8 rounded-2xl bg-[#161b22] border border-[#30363d]
+                      p-4 flex flex-col gap-3 min-h-0">
+        <div class="flex items-center justify-between shrink-0">
+          <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase">플레이어 현황</div>
+          <div class="flex gap-3 text-xs text-slate-500">
+            <span class="flex items-center gap-1">
+              <span class="inline-block w-2.5 h-2.5 rounded-sm bg-cyan-500/40
+                           border border-cyan-400/60"></span>시민
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="inline-block w-2.5 h-2.5 rounded-sm bg-red-500/40
+                           border border-red-400/60"></span>좀비
+            </span>
+          </div>
+        </div>
+
+        <!-- 그룹 레이블 + 그리드 -->
+        <div id="player-grid" class="grid grid-cols-6 gap-1.5 flex-1 min-h-0 content-start">
+          <!-- JS가 동적 생성 -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ═══════════════════ 알람 팝업 오버레이 ═══════════════════ -->
+  <div id="alarm-overlay"
+       class="fixed inset-0 z-[200] flex items-start justify-center pt-12 pointer-events-none hidden">
+    <div class="absolute inset-0 bg-black/65 backdrop-blur-sm"></div>
+    <div id="alarm-popup"
+         class="relative alarm-popup rounded-2xl border-2 border-yellow-400
+                bg-gradient-to-b from-slate-900 to-slate-950
+                px-10 py-8 max-w-xl w-full mx-4 shadow-2xl pointer-events-auto">
+
+      <div class="flex items-center justify-center gap-3 mb-5">
+        <span class="text-3xl animate-bounce">⚠️</span>
+        <span class="font-orbitron font-black text-2xl text-yellow-300 tracking-widest glow-yellow">
+          현황 공지
+        </span>
+        <span class="text-3xl animate-bounce" style="animation-delay:0.12s">⚠️</span>
+      </div>
+
+      <div class="text-center mb-6">
+        <div class="text-sm text-slate-400 mb-3">현재 생존 현황</div>
+        <div class="flex items-center justify-center gap-6">
+          <div class="flex flex-col items-center gap-1">
+            <span class="text-3xl">👤</span>
+            <span id="popup-citizen-count"
+                  class="font-orbitron font-black text-6xl text-sky-400 glow-cyan">--</span>
+            <span class="text-sky-400/70 text-sm">시민</span>
+          </div>
+          <span class="font-orbitron text-3xl text-slate-600 mb-4">VS</span>
+          <div class="flex flex-col items-center gap-1">
+            <span class="text-3xl">🧟</span>
+            <span id="popup-zombie-count"
+                  class="font-orbitron font-black text-6xl text-red-400 glow-red">--</span>
+            <span class="text-red-400/70 text-sm">좀비</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center">
+        <div id="popup-label"
+             class="inline-block px-6 py-2 rounded-full
+                    bg-yellow-400/10 border border-yellow-400/35
+                    text-yellow-300 text-sm tracking-widest">—</div>
+      </div>
+
+      <button id="popup-close-btn"
+              class="btn absolute top-3 right-3 w-8 h-8 rounded-full
+                     bg-slate-700/80 hover:bg-slate-600 text-slate-300 text-xs
+                     flex items-center justify-center"
+              onclick="closeAlarmPopup()">✕</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ 사이드 배너 ═══════════════════ -->
+  <div id="side-banner" class="fixed bottom-5 right-5 z-[150] hidden">
+    <div class="side-banner neon-yellow rounded-2xl
+                bg-gradient-to-br from-slate-900 to-[#0d1117]
+                px-5 py-4 max-w-[220px] shadow-2xl">
+      <div class="flex items-center gap-1.5 mb-2">
+        <span class="text-yellow-400 animate-pulse text-base">🔔</span>
+        <span class="text-yellow-300 text-xs font-black tracking-wide">최근 공지</span>
+      </div>
+      <div class="flex items-center gap-2.5">
+        <div class="flex flex-col items-center">
+          <span id="banner-citizen-count"
+                class="font-orbitron font-black text-2xl text-sky-400 glow-cyan">--</span>
+          <span class="text-xs text-sky-400/60">시민</span>
+        </div>
+        <span class="font-orbitron text-slate-600 text-xl">:</span>
+        <div class="flex flex-col items-center">
+          <span id="banner-zombie-count"
+                class="font-orbitron font-black text-2xl text-red-400 glow-red">--</span>
+          <span class="text-xs text-red-400/60">좀비</span>
+        </div>
+      </div>
+      <div id="banner-label" class="text-[10px] text-slate-600 mt-1 text-center"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ 게임 오버 오버레이 ═══════════════════ -->
+  <div id="game-over-overlay"
+       class="fixed inset-0 z-[300] flex items-center justify-center
+              bg-black/80 backdrop-blur-lg hidden">
+    <div class="text-center space-y-5">
+      <div class="text-8xl animate-bounce">🏁</div>
+      <h2 class="font-orbitron font-black text-5xl text-white glow-white tracking-widest">
+        GAME OVER
+      </h2>
+      <div class="flex items-center justify-center gap-10 mt-2">
+        <div class="text-center">
+          <div id="final-citizen"
+               class="font-orbitron font-black text-7xl text-sky-400 glow-cyan">--</div>
+          <div class="text-sky-400/70 text-xl mt-1">시민</div>
+        </div>
+        <div class="font-orbitron text-4xl text-slate-600">VS</div>
+        <div class="text-center">
+          <div id="final-zombie"
+               class="font-orbitron font-black text-7xl text-red-400 glow-red">--</div>
+          <div class="text-red-400/70 text-xl mt-1">좀비</div>
+        </div>
+      </div>
+      <button onclick="closeGameOver()"
+              class="btn mt-4 px-8 py-3 rounded-full
+                     bg-gradient-to-r from-slate-600 to-slate-700
+                     text-white border border-slate-500/40
+                     hover:from-slate-500 hover:to-slate-600 text-sm">
+        확인
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ 리셋 확인 모달 ═══════════════════ -->
+  <div id="reset-confirm-modal"
+       class="fixed inset-0 z-[400] flex items-center justify-center
+              bg-black/70 backdrop-blur-sm hidden">
+    <div class="rounded-2xl bg-[#161b22] border border-yellow-500/35
+                p-8 max-w-sm w-full mx-4 shadow-2xl text-center space-y-4">
+      <div class="text-5xl">⚠️</div>
+      <h3 class="font-black text-xl text-white">초기화 확인</h3>
+      <p class="text-sm text-slate-400 leading-relaxed">
+        모든 플레이어 점수를 0으로 초기화하고<br/>
+        좀비를 무작위 재배정합니다.<br/>
+        <span class="text-red-400 font-bold">이 작업은 되돌릴 수 없습니다.</span>
+      </p>
+      <div class="flex gap-3 mt-4">
+        <button onclick="cancelReset()"
+                class="btn flex-1 py-2.5 rounded-xl text-sm
+                       bg-slate-700 text-slate-300
+                       hover:bg-slate-600 border border-slate-600/40">취소</button>
+        <button onclick="confirmReset()"
+                class="btn flex-1 py-2.5 rounded-xl text-sm
+                       bg-gradient-to-r from-red-600 to-rose-600
+                       text-white shadow-lg shadow-red-500/20
+                       hover:from-red-500 hover:to-rose-500">확인 — 초기화</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ Firebase 설정 로드 ═══════════════════ -->
+  <script src="firebase-config.js"></script>
+
+  <!-- ═══════════════════ 메인 JS 로드 ═══════════════════ -->
+  <script src="scoreboard.js"></script>
+</body>
+</html>

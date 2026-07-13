@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>역할 확인 — 시민 vs 좀비</title>
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet" />
+
+  <!-- html5-qrcode (오픈소스 QR 스캐너) -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- Firebase App + RTDB (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            orbitron: ['Orbitron', 'sans-serif'],
+            noto:     ['Noto Sans KR', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #0d1117;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── 스캔 뷰 배경 그리드 ─────────────────── */
+    .bg-grid {
+      background-color: #0d1117;
+      background-image:
+        linear-gradient(rgba(56,189,248,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,0.04) 1px, transparent 1px);
+      background-size: 36px 36px;
+    }
+
+    /* ── 스캔라인 오버레이 ───────────────────── */
+    .scanlines::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── QR 카메라 컨테이너 ─────────────────── */
+    #qr-reader {
+      width: 100%;
+      border: none !important;
+      background: transparent !important;
+    }
+    /* html5-qrcode 기본 UI 스타일 오버라이드 */
+    #qr-reader > div           { border: none !important; }
+    #qr-reader img             { display: none !important; }
+    #qr-reader__dashboard      { display: none !important; }
+    #qr-reader__status_span    { display: none !important; }
+    #qr-reader__camera_permission_button { display: none !important; }
+
+    /* 뷰파인더 프레임 */
+    .qr-frame {
+      position: absolute;
+      width: 220px; height: 220px;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+    }
+    .qr-frame::before,
+    .qr-frame::after,
+    .qr-frame > span::before,
+    .qr-frame > span::after {
+      content: '';
+      position: absolute;
+      width: 32px; height: 32px;
+      border-color: #38bdf8;
+      border-style: solid;
+    }
+    .qr-frame::before       { top: 0;   left: 0;  border-width: 3px 0 0 3px; border-radius: 6px 0 0 0; }
+    .qr-frame::after        { top: 0;   right: 0; border-width: 3px 3px 0 0; border-radius: 0 6px 0 0; }
+    .qr-frame > span::before{ bottom:0; left: 0;  border-width: 0 0 3px 3px; border-radius: 0 0 0 6px; }
+    .qr-frame > span::after { bottom:0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 6px 0; }
+
+    /* 스캔 레이저 라인 */
+    @keyframes laserScan {
+      0%   { top: 12%; opacity: 1; }
+      50%  { top: 86%; opacity: 0.7; }
+      100% { top: 12%; opacity: 1; }
+    }
+    .laser-line {
+      position: absolute;
+      left: 5%; right: 5%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #38bdf8 20%, #7dd3fc 50%, #38bdf8 80%, transparent);
+      box-shadow: 0 0 8px #38bdf8, 0 0 20px rgba(56,189,248,0.5);
+      animation: laserScan 2.4s ease-in-out infinite;
+      z-index: 11;
+    }
+
+    /* ── 결과 화면 ───────────────────────────── */
+    #result-screen {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 200;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    #result-screen.visible {
+      opacity: 1; pointer-events: auto;
+    }
+
+    /* 시민 배경 */
+    .result-citizen {
+      background: radial-gradient(ellipse at center,
+        rgba(14,165,233,0.35) 0%,
+        rgba(7,89,133,0.6) 50%,
+        rgba(2,32,60,0.92) 100%
+      ), #020c14;
+    }
+    /* 좀비 배경 */
+    .result-zombie {
+      background: radial-gradient(ellipse at center,
+        rgba(220,38,38,0.35) 0%,
+        rgba(127,10,10,0.6) 50%,
+        rgba(40,2,2,0.92) 100%
+      ), #100202;
+    }
+
+    /* 글로우 */
+    .glow-cyan  { text-shadow: 0 0 20px #38bdf8, 0 0 50px #0ea5e9, 0 0 100px rgba(14,165,233,0.5); }
+    .glow-red   { text-shadow: 0 0 20px #f87171, 0 0 50px #ef4444, 0 0 100px rgba(220,38,38,0.5); }
+    .glow-white { text-shadow: 0 0 15px #fff, 0 0 40px rgba(255,255,255,0.4); }
+
+    /* 이모지 등장 애니메이션 */
+    @keyframes roleReveal {
+      0%   { opacity: 0; transform: scale(0.3) rotate(-15deg); }
+      60%  { opacity: 1; transform: scale(1.12) rotate(3deg); }
+      80%  { transform: scale(0.96) rotate(-1deg); }
+      100% { opacity: 1; transform: scale(1) rotate(0deg); }
+    }
+    .role-reveal { animation: roleReveal 0.7s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+    /* 텍스트 슬라이드업 */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .slide-up       { animation: slideUp 0.5s ease-out 0.35s both; }
+    .slide-up-delay { animation: slideUp 0.5s ease-out 0.55s both; }
+
+    /* 파티클 링 */
+    @keyframes ringPulse {
+      0%   { transform: scale(0.5); opacity: 0.8; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+    .ring {
+      position: absolute;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      border: 2px solid;
+      animation: ringPulse 2s ease-out infinite;
+    }
+    .ring:nth-child(2) { animation-delay: 0.5s; }
+    .ring:nth-child(3) { animation-delay: 1s;   }
+    .ring-citizen { border-color: rgba(56,189,248,0.6); }
+    .ring-zombie  { border-color: rgba(248,113,113,0.6); }
+
+    /* 카운트다운 바 */
+    @keyframes countdownBar {
+      from { width: 100%; }
+      to   { width: 0%; }
+    }
+    #countdown-bar {
+      animation: countdownBar 5s linear forwards;
+    }
+
+    /* 맥박 이모지 */
+    @keyframes heartbeat {
+      0%,100% { transform: scale(1); }
+      25%     { transform: scale(1.1); }
+      50%     { transform: scale(1); }
+      75%     { transform: scale(1.08); }
+    }
+    .heartbeat { animation: heartbeat 1.2s ease-in-out infinite; }
+
+    /* 플래시 효과 */
+    @keyframes flashIn {
+      0%   { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    #flash {
+      position: fixed; inset: 0; z-index: 300;
+      pointer-events: none; opacity: 0;
+    }
+    #flash.flash-active {
+      animation: flashIn 0.6s ease-out forwards;
+    }
+
+    /* ── 모바일 최적화 ───────────────────────── */
+    @media (max-height: 700px) {
+      .role-emoji { font-size: 5rem !important; }
+      .role-title { font-size: 1.6rem !important; }
+    }
+
+    /* 버튼 */
+    .btn {
+      cursor: pointer; border: none; outline: none;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+    .btn:active { transform: scale(0.95); }
+
+    /* QR 카메라 비디오 */
+    #qr-reader video {
+      border-radius: 1rem !important;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+    }
+  </style>
+</head>
+
+<body class="bg-grid scanlines">
+
+  <!-- ══════════════════════════════════════════════════
+       플래시 오버레이
+  ══════════════════════════════════════════════════ -->
+  <div id="flash"></div>
+
+  <!-- ══════════════════════════════════════════════════
+       스캔 화면 (기본 상태)
+  ══════════════════════════════════════════════════ -->
+  <div id="scan-screen"
+       class="fixed inset-0 flex flex-col items-center justify-between
+              py-8 px-5 z-10">
+
+    <!-- 헤더 -->
+    <div class="flex flex-col items-center gap-2 pt-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-600
+                    flex items-center justify-center text-xl shadow-lg shadow-red-500/30
+                    border border-red-400/25">🧟</div>
+        <div>
+          <h1 class="font-orbitron font-black text-lg text-white leading-none"
+              style="text-shadow: 0 0 20px rgba(255,255,255,0.4);">
+            VIRUS 2026
+          </h1>
+          <p class="text-[10px] text-slate-500 tracking-widest mt-0.5">역할 확인 시스템</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 카메라 영역 -->
+    <div class="relative w-full max-w-xs">
+      <!-- 외곽 글로우 링 -->
+      <div class="absolute -inset-4 rounded-3xl opacity-20
+                  bg-gradient-to-br from-cyan-500 to-blue-600 blur-xl"></div>
+
+      <!-- 카메라 컨테이너 -->
+      <div class="relative rounded-2xl overflow-hidden
+                  border border-cyan-500/20 shadow-2xl shadow-cyan-500/10"
+           style="aspect-ratio: 1/1;">
+        <div id="qr-reader" class="w-full h-full"></div>
+
+        <!-- 뷰파인더 프레임 -->
+        <div class="qr-frame">
+          <span></span>
+        </div>
+
+        <!-- 레이저 스캔 라인 -->
+        <div class="laser-line"></div>
+
+        <!-- 어두운 마스크 (모서리) -->
+        <div class="absolute inset-0 pointer-events-none"
+             style="box-shadow: inset 0 0 60px rgba(0,0,0,0.5);"></div>
+      </div>
+
+      <!-- 상태 인디케이터 -->
+      <div id="scan-status"
+           class="absolute -bottom-8 left-0 right-0
+                  flex items-center justify-center gap-2">
+        <span id="status-dot"
+              class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse
+                     shadow-[0_0_8px_#38bdf8]"></span>
+        <span id="status-text" class="text-xs text-cyan-400/80 font-noto tracking-wider">
+          카메라 시작 중...
+        </span>
+      </div>
+    </div>
+
+    <!-- 안내 텍스트 -->
+    <div class="flex flex-col items-center gap-4 pb-2">
+      <div class="flex flex-col items-center gap-1.5">
+        <p class="text-sm text-slate-300 font-noto text-center leading-relaxed">
+          카드의 QR 코드를<br/>카메라에 비춰주세요
+        </p>
+        <p class="text-xs text-slate-600 font-noto">
+          결과는 본인만 확인 후 비밀로 유지하세요
+        </p>
+      </div>
+
+      <!-- 연결 상태 -->
+      <div id="connection-badge"
+           class="flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                  bg-slate-800/70 border border-slate-700/50 text-xs">
+        <span id="conn-dot" class="w-1.5 h-1.5 rounded-full bg-slate-600
+                                   transition-all duration-500"></span>
+        <span id="conn-text" class="text-slate-500">Firebase 연결 중...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       결과 화면 (역할 공개)
+  ══════════════════════════════════════════════════ -->
+  <div id="result-screen" class="result-citizen">
+
+    <!-- 파티클 링 -->
+    <div id="rings-container" class="absolute inset-0 flex items-center justify-center">
+      <div class="ring ring-citizen"></div>
+      <div class="ring ring-citizen"></div>
+      <div class="ring ring-citizen"></div>
+    </div>
+
+    <!-- 콘텐츠 -->
+    <div class="relative z-10 flex flex-col items-center gap-6 px-8 text-center">
+
+      <!-- 플레이어 ID 배지 -->
+      <div id="result-player-id"
+           class="slide-up px-4 py-1.5 rounded-full
+                  bg-white/5 border border-white/15
+                  font-orbitron text-xs text-slate-400 tracking-widest">
+        P--
+      </div>
+
+      <!-- 이모지 -->
+      <div class="relative">
+        <div id="result-emoji"
+             class="role-emoji role-reveal heartbeat"
+             style="font-size: 7rem; line-height: 1;">
+          👤
+        </div>
+      </div>
+
+      <!-- 역할 텍스트 -->
+      <div class="flex flex-col items-center gap-2">
+        <div id="result-title"
+             class="role-title slide-up font-orbitron font-black text-white glow-white"
+             style="font-size: 2rem; letter-spacing: 0.05em;">
+          당신은 시민입니다
+        </div>
+        <div id="result-subtitle"
+             class="slide-up-delay font-noto text-base text-white/60">
+          —
+        </div>
+      </div>
+
+      <!-- 카운트다운 -->
+      <div class="slide-up-delay w-full max-w-xs">
+        <div class="h-1 rounded-full bg-white/10 overflow-hidden">
+          <div id="countdown-bar" class="h-full rounded-full bg-white/40"></div>
+        </div>
+        <p class="text-xs text-white/30 mt-1.5 font-noto text-center">
+          5초 후 자동으로 다음 화면으로 전환됩니다
+        </p>
+      </div>
+
+      <!-- 수동 닫기 버튼 -->
+      <button id="btn-close-result"
+              class="btn px-6 py-2.5 rounded-full text-sm
+                     bg-white/10 border border-white/20 text-white/70
+                     hover:bg-white/20 hover:text-white
+                     slide-up-delay">
+        지금 닫기
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       에러 화면
+  ══════════════════════════════════════════════════ -->
+  <div id="error-screen"
+       class="fixed inset-0 z-[150] flex-col items-center justify-center
+              bg-slate-950/95 backdrop-blur-sm hidden" style="display:none;">
+    <div class="text-center px-8 space-y-4">
+      <div class="text-5xl">⚠️</div>
+      <h2 class="font-noto font-black text-lg text-white">오류 발생</h2>
+      <p id="error-msg" class="text-sm text-slate-400 font-noto leading-relaxed">—</p>
+      <button id="btn-retry"
+              class="btn px-6 py-2.5 rounded-full text-sm
+                     bg-gradient-to-r from-cyan-600 to-sky-600
+                     text-white shadow-lg shadow-cyan-500/25
+                     hover:from-cyan-500 hover:to-sky-500">
+        다시 시도
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       Firebase 설정 로드
+  ══════════════════════════════════════════════════ -->
+  <script src="firebase-config.js"></script>
+
+  <!-- ══════════════════════════════════════════════════
+       메인 로직
+  ══════════════════════════════════════════════════ -->
+  <script>
+  (function() {
+    'use strict';
+
+    // ── Firebase 초기화 ───────────────────────────────
+    // firebase-config.js의 firebaseConfig 변수 사용
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ── DOM ───────────────────────────────────────────
+    const scanScreen    = document.getElementById('scan-screen');
+    const resultScreen  = document.getElementById('result-screen');
+    const errorScreen   = document.getElementById('error-screen');
+    const flashEl       = document.getElementById('flash');
+
+    const resultEmoji    = document.getElementById('result-emoji');
+    const resultTitle    = document.getElementById('result-title');
+    const resultSubtitle = document.getElementById('result-subtitle');
+    const resultPlayerId = document.getElementById('result-player-id');
+    const countdownBar   = document.getElementById('countdown-bar');
+    const ringsContainer = document.getElementById('rings-container');
+    const btnCloseResult = document.getElementById('btn-close-result');
+    const btnRetry       = document.getElementById('btn-retry');
+
+    const statusDot  = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const connDot    = document.getElementById('conn-dot');
+    const connText   = document.getElementById('conn-text');
+    const errorMsg   = document.getElementById('error-msg');
+
+    // ── 상태 변수 ─────────────────────────────────────
+    let html5QrCode  = null;
+    let isShowingResult = false;
+    let autoResetTimer  = null;
+    let scannerStarted  = false;
+
+    // 유효한 QR 패턴: P1 ~ P30
+    const VALID_QR_PATTERN = /^P([1-9]|[12][0-9]|30)$/;
+
+    // ── 연결 상태 모니터링 ────────────────────────────
+    db.ref('.info/connected').on('value', (snap) => {
+      if (snap.val() === true) {
+        connDot.style.background = '#4ade80';
+        connDot.style.boxShadow  = '0 0 6px #4ade80';
+        connText.textContent     = 'Firebase 연결됨';
+        connText.style.color     = '#86efac';
+      } else {
+        connDot.style.background = '#f87171';
+        connDot.style.boxShadow  = '0 0 6px #f87171';
+        connText.textContent     = '연결 끊김 — 재연결 중...';
+        connText.style.color     = '#fca5a5';
+      }
+    });
+
+    // ══════════════════════════════════════════════════
+    // QR 스캐너 초기화
+    // ══════════════════════════════════════════════════
+    function initScanner() {
+      if (html5QrCode) {
+        html5QrCode.clear().catch(() => {});
+        html5QrCode = null;
+      }
+
+      html5QrCode = new Html5Qrcode('qr-reader', {
+        verbose: false,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      });
+
+      const config = {
+        fps: 12,
+        qrbox: { width: 200, height: 200 },
+        aspectRatio: 1.0,
+        disableFlip: false,
+        // 자동 확대 없음
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      };
+
+      html5QrCode.start(
+        { facingMode: 'environment' },
+        config,
+        onQrSuccess,
+        onQrError
+      ).then(() => {
+        scannerStarted = true;
+        setStatusReady();
+      }).catch((err) => {
+        showError(
+          '카메라를 시작할 수 없습니다.<br/>' +
+          '브라우저에서 카메라 접근 권한을 허용해 주세요.<br/>' +
+          '<small style="opacity:0.6">' + String(err) + '</small>'
+        );
+      });
+    }
+
+    function setStatusReady() {
+      statusDot.style.background = '#4ade80';
+      statusDot.style.boxShadow  = '0 0 8px #4ade80';
+      statusDot.classList.remove('animate-pulse');
+      statusDot.classList.add('animate-pulse');
+      statusText.textContent     = 'QR 코드를 비춰주세요';
+      statusText.style.color     = 'rgba(134,239,172,0.9)';
+    }
+
+    function setStatusScanning() {
+      statusDot.style.background = '#fbbf24';
+      statusDot.style.boxShadow  = '0 0 8px #fbbf24';
+      statusText.textContent     = '인식 중...';
+      statusText.style.color     = 'rgba(251,191,36,0.9)';
+    }
+
+    // ── QR 성공 콜백 ─────────────────────────────────
+    function onQrSuccess(decodedText) {
+      if (isShowingResult) return;
+
+      const trimmed = decodedText.trim();
+
+      // 유효성 검사 (P1~P30)
+      if (!VALID_QR_PATTERN.test(trimmed)) {
+        // 무효 QR은 무시 (다른 QR 코드일 수 있음)
+        return;
+      }
+
+      setStatusScanning();
+      isShowingResult = true;
+
+      // Firebase에서 역할 조회
+      fetchPlayerRole(trimmed);
+    }
+
+    // ── QR 에러 콜백 (지속적으로 호출되므로 무시) ────
+    function onQrError() {
+      // 스캔 중 미인식은 정상 — 처리 불필요
+    }
+
+    // ══════════════════════════════════════════════════
+    // Firebase 역할 조회
+    // ══════════════════════════════════════════════════
+    function fetchPlayerRole(playerId) {
+      db.ref(`players/${playerId}`).once('value')
+        .then((snapshot) => {
+          if (!snapshot.exists()) {
+            showError(`"${playerId}" 데이터를 찾을 수 없습니다.<br/>게임 초기화 후 다시 시도해 주세요.`);
+            isShowingResult = false;
+            setStatusReady();
+            return;
+          }
+          const data = snapshot.val();
+          showRoleResult(playerId, data.role);
+        })
+        .catch((err) => {
+          showError('Firebase 조회 실패:<br/>' + String(err));
+          isShowingResult = false;
+          setStatusReady();
+        });
+    }
+
+    // ══════════════════════════════════════════════════
+    // 역할 결과 화면 표시
+    // ══════════════════════════════════════════════════
+    function showRoleResult(playerId, role) {
+      const isCitizen = role === 'citizen';
+
+      // ── 플래시 효과 ────────────────────────────────
+      flashEl.style.background = isCitizen
+        ? 'rgba(56,189,248,0.6)'
+        : 'rgba(220,38,38,0.6)';
+      flashEl.classList.remove('flash-active');
+      void flashEl.offsetWidth;
+      flashEl.classList.add('flash-active');
+
+      // ── 배경 클래스 ────────────────────────────────
+      resultScreen.className = resultScreen.className
+        .replace(/result-(citizen|zombie)/g, '');
+      resultScreen.classList.add(isCitizen ? 'result-citizen' : 'result-zombie');
+      // ✅ FIX: cssText 전체 초기화 금지 — display 속성이 덮어써짐
+      // 배경은 클래스로만 제어하고 inline style은 건드리지 않음
+
+
+      // ── 링 색상 ────────────────────────────────────
+      const rings = ringsContainer.querySelectorAll('.ring');
+      rings.forEach(r => {
+        r.classList.remove('ring-citizen', 'ring-zombie');
+        r.classList.add(isCitizen ? 'ring-citizen' : 'ring-zombie');
+      });
+
+      // ── 콘텐츠 채우기 ──────────────────────────────
+      resultPlayerId.textContent = playerId;
+
+      if (isCitizen) {
+        resultEmoji.textContent   = '🧑';
+        resultTitle.textContent   = '당신은 시민입니다';
+        resultTitle.className     = resultTitle.className.replace(/glow-(cyan|red)/g, '') + ' glow-cyan';
+        resultSubtitle.textContent= '좀비를 찾아내고 살아남으세요!';
+        resultSubtitle.style.color= 'rgba(125,211,252,0.7)';
+      } else {
+        resultEmoji.textContent   = '🧟';
+        resultTitle.textContent   = '당신은 좀비입니다';
+        resultTitle.className     = resultTitle.className.replace(/glow-(cyan|red)/g, '') + ' glow-red';
+        resultSubtitle.textContent= '시민들에게 들키지 말고 퍼뜨리세요!';
+        resultSubtitle.style.color= 'rgba(252,165,165,0.7)';
+      }
+
+      // ── 애니메이션 재실행 (DOM 리플로우) ───────────
+      resultEmoji.classList.remove('role-reveal');
+      void resultEmoji.offsetWidth;
+      resultEmoji.classList.add('role-reveal');
+
+      // ── 카운트다운 바 재실행 ────────────────────────
+      countdownBar.style.animation = 'none';
+      void countdownBar.offsetWidth;
+      countdownBar.style.animation = '';
+      // 색상
+      countdownBar.style.background = isCitizen
+        ? 'rgba(56,189,248,0.6)'
+        : 'rgba(248,113,113,0.6)';
+
+      // ── 화면 전환 ──────────────────────────────────
+      resultScreen.style.display = 'flex';
+      // 다음 프레임에서 visible 클래스 추가 (트랜지션 적용)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resultScreen.classList.add('visible');
+        });
+      });
+
+      // ── 5초 후 자동 리셋 ───────────────────────────
+      clearTimeout(autoResetTimer);
+      autoResetTimer = setTimeout(() => {
+        hideResultAndResume();
+      }, 5000);
+    }
+
+    // ══════════════════════════════════════════════════
+    // 결과 화면 닫기 & 스캐너 재개
+    // ══════════════════════════════════════════════════
+    function hideResultAndResume() {
+      clearTimeout(autoResetTimer);
+
+      resultScreen.classList.remove('visible');
+
+      setTimeout(() => {
+        resultScreen.style.display = 'none';
+        isShowingResult = false;
+        setStatusReady();
+      }, 400); // opacity 트랜지션 대기
+    }
+
+    btnCloseResult.addEventListener('click', hideResultAndResume);
+
+    // ══════════════════════════════════════════════════
+    // 에러 화면
+    // ══════════════════════════════════════════════════
+    function showError(msg) {
+      errorMsg.innerHTML = msg;
+      errorScreen.style.display = 'flex';
+      isShowingResult = false;
+    }
+
+    function hideError() {
+      errorScreen.style.display = 'none';
+    }
+
+    btnRetry.addEventListener('click', () => {
+      hideError();
+      initScanner();
+    });
+
+    // ══════════════════════════════════════════════════
+    // 시작
+    // ══════════════════════════════════════════════════
+    // 페이지 로드 시 스캐너 자동 시작
+    window.addEventListener('load', () => {
+      // 결과 화면 초기 숨김
+      resultScreen.style.display = 'none';
+
+      setTimeout(() => {
+        initScanner();
+      }, 300);
+    });
+
+    // 페이지 숨김/표시 처리 (모바일 앱 전환 시)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (html5QrCode && scannerStarted) {
+          html5QrCode.pause(true);
+        }
+      } else {
+        if (html5QrCode && scannerStarted && !isShowingResult) {
+          html5QrCode.resume();
+        }
+      }
+    });
+
+  })();
+  </script>
+</body>
+</html>

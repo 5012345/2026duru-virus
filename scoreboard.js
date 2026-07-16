@@ -27,6 +27,7 @@ const state = {
   currentBannerKey: null,
   lastSyncedTime:   1200,
   maxPlayers:   30, // 기본 최대 30명
+  maxZombies:   6,  // 설정된 좀비 인원 수
   initialZombieCount: 6, // 리셋 시 생성된 초기 좀비 수 저장용
 };
 
@@ -66,6 +67,10 @@ const DOM = {
   btnPlayerInc:      document.getElementById('btn-player-inc'),
   playerCountDisplay:document.getElementById('player-count-display'),
   btnForceEnd:       document.getElementById('btn-force-end'),
+
+  btnZombieDec:      document.getElementById('btn-zombie-dec'),
+  btnZombieInc:      document.getElementById('btn-zombie-inc'),
+  zombieCountDisplay:document.getElementById('zombie-count-display'),
 
   alarmRows: {
     960: document.getElementById('alarm-row-16'),
@@ -440,18 +445,7 @@ function performReset() {
   stopLocalTimer();
 
   const n = state.maxPlayers || 30;
-  
-  // 좀비 비율 계산 규칙: n/6 <= Z <= n/5
-  let zMin = Math.ceil(n / 6);
-  let zMax = Math.floor(n / 5);
-  let zombieCount = 0;
-  if (zMin <= zMax) {
-    // 해당 범위 내 정수 선택
-    zombieCount = zMin + Math.floor(Math.random() * (zMax - zMin + 1));
-  } else {
-    // 정수가 존재하지 않는 특수한 경우, 가장 비율에 근접한 정수 선택 (최소 1명)
-    zombieCount = Math.max(1, Math.round(n / 5.5));
-  }
+  const zombieCount = state.maxZombies || 6;
 
   // 1부터 n까지 번호 생성 후 셔플
   const list = [];
@@ -482,6 +476,7 @@ function performReset() {
       time_left: 1200,
       is_active: false,
       max_players: n,
+      max_zombies: zombieCount,
       initial_zombie_count: zombieCount // 최초 좀비 수 저장
     }))
     .then(() => REF.interactions.set(null))
@@ -569,11 +564,16 @@ REF.gameState.on('value', snapshot => {
   // 최초 좀비 수 동기화
   state.initialZombieCount = data.initial_zombie_count ?? 6;
 
-  // max_players 동기화
+  // max_players 및 max_zombies 동기화
   const oldMaxPlayers = state.maxPlayers;
   state.maxPlayers = data.max_players ?? 30;
   if (DOM.playerCountDisplay) {
     DOM.playerCountDisplay.textContent = `${state.maxPlayers}명`;
+  }
+
+  state.maxZombies = data.max_zombies ?? 6;
+  if (DOM.zombieCountDisplay) {
+    DOM.zombieCountDisplay.textContent = `${state.maxZombies}명`;
   }
 
   // 인원수가 변경되었으면 그리드 다시 그리기
@@ -631,7 +631,7 @@ REF.players.once('value', snapshot => {
 
 REF.gameState.once('value', snapshot => {
   if (!snapshot.exists()) {
-    REF.gameState.set({ time_left: 1200, is_active: false, max_players: 30, initial_zombie_count: 6 });
+    REF.gameState.set({ time_left: 1200, is_active: false, max_players: 30, max_zombies: 6, initial_zombie_count: 6 });
   }
 });
 
@@ -644,7 +644,14 @@ if (DOM.btnPlayerDec && DOM.btnPlayerInc && DOM.playerCountDisplay) {
     }
     if (state.maxPlayers > 5) {
       const newCount = state.maxPlayers - 1;
-      REF.gameState.update({ max_players: newCount });
+      
+      // 인원 감소에 맞춰서 자동으로 좀비 수 기본값 보정 (좀비 수가 인원수 이상이 되는 것 방지)
+      let zMin = Math.ceil(newCount / 6);
+      let zMax = Math.floor(newCount / 5);
+      let newZombieCount = zMin <= zMax ? zMin : Math.max(1, Math.round(newCount / 5.5));
+      if (newZombieCount >= newCount) newZombieCount = newCount - 1;
+
+      REF.gameState.update({ max_players: newCount, max_zombies: newZombieCount });
     }
   });
 
@@ -655,7 +662,39 @@ if (DOM.btnPlayerDec && DOM.btnPlayerInc && DOM.playerCountDisplay) {
     }
     if (state.maxPlayers < 30) {
       const newCount = state.maxPlayers + 1;
-      REF.gameState.update({ max_players: newCount });
+      
+      // 인원 증가에 맞춰서 자동으로 좀비 수 기본값 보정
+      let zMin = Math.ceil(newCount / 6);
+      let zMax = Math.floor(newCount / 5);
+      let newZombieCount = zMin <= zMax ? zMin : Math.max(1, Math.round(newCount / 5.5));
+
+      REF.gameState.update({ max_players: newCount, max_zombies: newZombieCount });
+    }
+  });
+}
+
+// ── 좀비 인원 조절 클릭 이벤트 바인딩 ──────────────────────────────────
+if (DOM.btnZombieDec && DOM.btnZombieInc && DOM.zombieCountDisplay) {
+  DOM.btnZombieDec.addEventListener('click', () => {
+    if (state.isActive) {
+      alert('게임 중에는 좀비 인원을 변경할 수 없습니다.');
+      return;
+    }
+    if (state.maxZombies > 1) {
+      const newZombieCount = state.maxZombies - 1;
+      REF.gameState.update({ max_zombies: newZombieCount });
+    }
+  });
+
+  DOM.btnZombieInc.addEventListener('click', () => {
+    if (state.isActive) {
+      alert('게임 중에는 좀비 인원을 변경할 수 없습니다.');
+      return;
+    }
+    // 좀비 수는 참가 인원보다 작아야 함 (최소 1명의 시민 보장)
+    if (state.maxZombies < state.maxPlayers - 1) {
+      const newZombieCount = state.maxZombies + 1;
+      REF.gameState.update({ max_zombies: newZombieCount });
     }
   });
 }
@@ -709,5 +748,25 @@ function closePlayerPopup() {
 
 // ESC 키로 팝업 닫기
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closePlayerPopup();
+  if (e.key === 'Escape') {
+    closePlayerPopup();
+    closeRulesPopup();
+  }
 });
+
+// ══════════════════════════════════════════════════════════════════════
+// 규칙서 팝업 제어 (전역 함수 — HTML onclick에서 호출함)
+// ══════════════════════════════════════════════════════════════════════
+function openRulesPopup() {
+  const popup = document.getElementById('rules-popup');
+  if (!popup) return;
+  popup.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeRulesPopup() {
+  const popup = document.getElementById('rules-popup');
+  if (!popup) return;
+  popup.classList.add('hidden');
+  document.body.style.overflow = '';
+}

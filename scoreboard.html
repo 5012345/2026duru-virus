@@ -255,6 +255,16 @@
           <span>👥</span>
           <span class="font-noto">플레이어 현황</span>
         </button>
+        <!-- 규칙서 팝업 버튼 -->
+        <button id="btn-rules"
+                class="btn flex items-center gap-2 px-4 py-1.5 rounded-full
+                       bg-yellow-500/15 border border-yellow-400/30
+                       text-yellow-300 text-xs hover:bg-yellow-500/25
+                       hover:border-yellow-400/50 transition-all"
+                onclick="openRulesPopup()">
+          <span>📜</span>
+          <span class="font-noto">게임 규칙</span>
+        </button>
       </div>
     </header>
 
@@ -303,6 +313,77 @@
       </div>
     </div>
 
+    <!-- ═══════════════════ 게임 규칙 규칙서 팝업 ═══════════════════ -->
+    <div id="rules-popup"
+         class="fixed inset-0 z-[300] flex items-center justify-center hidden"
+         onclick="if(event.target===this)closeRulesPopup()">
+      <div class="absolute inset-0 bg-black/75 backdrop-blur-sm"></div>
+      <div class="relative rounded-2xl border border-yellow-500/30
+                  bg-gradient-to-b from-[#0d1117] to-[#161b22]
+                  shadow-2xl shadow-yellow-500/10
+                  w-[90vw] max-w-2xl max-h-[85vh] flex flex-col p-6 gap-4">
+
+        <!-- 팝업 헤더 -->
+        <div class="flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">📜</span>
+            <div>
+              <h2 class="font-noto font-black text-lg text-white">시민 vs 좀비 게임 규칙</h2>
+              <p class="text-xs text-slate-500 font-noto">승리 조건 및 상호작용 매뉴얼</p>
+            </div>
+          </div>
+          <button onclick="closeRulesPopup()"
+                  class="btn w-8 h-8 rounded-full bg-slate-700/60 border border-slate-600/40
+                         text-slate-400 text-sm hover:bg-slate-600/60 hover:text-white">
+            ✕
+          </button>
+        </div>
+
+        <!-- 규칙 설명 본문 -->
+        <div class="overflow-y-auto flex-1 space-y-4 pr-1 text-sm text-slate-300 leading-relaxed font-noto">
+          <div class="space-y-2">
+            <h3 class="font-bold text-yellow-400 flex items-center gap-1.5">
+              <span>🎯</span> 게임의 목적
+            </h3>
+            <p class="pl-5 text-slate-400">
+              이 게임은 시민들이 몰래 잠입한 좀비의 정체를 밝혀내고 생존하며, 좀비는 본인의 정체를 숨긴 채 시민들을 전염시키는 30인 실시간 보드게임형 서바이벌 웹 앱입니다.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <h3 class="font-bold text-yellow-400 flex items-center gap-1.5">
+              <span>👤</span> 시민 승리 조건
+            </h3>
+            <p class="pl-5 text-slate-400">
+              제한시간(20분)이 종료될 때까지 <strong>좀비의 승리 조건을 저지</strong>하고 생존하는 경우 시민 진영이 승리합니다.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <h3 class="font-bold text-yellow-400 flex items-center gap-1.5">
+              <span>🧟</span> 좀비 승리 조건
+            </h3>
+            <p class="pl-5 text-slate-400">
+              게임 진행 도중 <strong>남은 시민의 수가 최초 배정된 좀비 인원 수의 2배 미만</strong>으로 감소할 경우 즉시 게임이 조기 종료되며 <strong>최초 좀비 지정자들</strong>이 우승합니다.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <h3 class="font-bold text-yellow-400 flex items-center gap-1.5">
+              <span>🔄</span> 상호작용 규칙 (태블릿 스캔)
+            </h3>
+            <ul class="list-disc pl-9 space-y-1 text-slate-400">
+              <li><strong>시민 + 시민</strong>: 두 시민 플레이어 모두에게 각각 <span class="text-cyan-400 font-bold">+1점</span>이 부여됩니다.</li>
+              <li><strong>시민 + 좀비</strong>: 시민 플레이어가 <span class="text-red-400 font-bold">좀비로 전염</span>되며, 점수 획득은 없습니다.</li>
+              <li><strong>좀비 + 좀비</strong>: 아무런 변화가 일어나지 않습니다.</li>
+              <li><em>* 모든 상호작용 성공 문구는 역할 힌트를 노출하지 않기 위해 "두 카드의 상호작용이 성공했습니다."로 통일되어 표시됩니다.</em></li>
+              <li><em>* 동일한 카드 쌍과는 게임 중 중복 상호작용이 불가능합니다.</em></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 본문 -->
     <main class="flex-1 grid grid-cols-12 gap-2.5 min-h-0">
 
@@ -331,13 +412,26 @@
         <div class="rounded-2xl bg-[#161b22] border border-[#30363d] p-4 flex flex-col gap-2 shrink-0">
           <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase mb-0.5">게임 제어</div>
           
-          <!-- 인원 설정 UI -->
-          <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-[#30363d] mb-1">
-            <span class="text-xs text-slate-400 font-noto">참가 인원 설정</span>
-            <div class="flex items-center gap-2">
-              <button id="btn-player-dec" class="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all">-</button>
-              <span id="player-count-display" class="font-orbitron font-bold text-sm text-cyan-400 min-w-[2.5rem] text-center">30명</span>
-              <button id="btn-player-inc" class="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all">+</button>
+          <!-- 인원 및 좀비 설정 병렬 UI -->
+          <div class="grid grid-cols-2 gap-2 mb-1">
+            <!-- 참가 인원 설정 -->
+            <div class="flex flex-col gap-1 p-2 rounded-xl bg-slate-900/60 border border-[#30363d]">
+              <span class="text-[10px] text-slate-400 font-noto">참가 인원 설정</span>
+              <div class="flex items-center justify-between mt-1">
+                <button id="btn-player-dec" class="w-6 h-6 rounded-md bg-slate-800 border border-slate-700 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all">-</button>
+                <span id="player-count-display" class="font-orbitron font-bold text-xs text-cyan-400">30명</span>
+                <button id="btn-player-inc" class="w-6 h-6 rounded-md bg-slate-800 border border-slate-700 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all">+</button>
+              </div>
+            </div>
+            
+            <!-- 좀비 인원 설정 -->
+            <div class="flex flex-col gap-1 p-2 rounded-xl bg-slate-900/60 border border-[#30363d]">
+              <span class="text-[10px] text-slate-400 font-noto">좀비 인원 설정</span>
+              <div class="flex items-center justify-between mt-1">
+                <button id="btn-zombie-dec" class="w-6 h-6 rounded-md bg-slate-800 border border-slate-700 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all">-</button>
+                <span id="zombie-count-display" class="font-orbitron font-bold text-xs text-red-400">6명</span>
+                <button id="btn-zombie-inc" class="w-6 h-6 rounded-md bg-slate-800 border border-slate-700 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all">+</button>
+              </div>
             </div>
           </div>
 

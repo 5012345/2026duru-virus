@@ -348,6 +348,16 @@
                          hover:shadow-emerald-400/35 hover:from-emerald-400 hover:to-teal-400">
             ▶ &nbsp;게임 시작
           </button>
+          
+          <!-- 타이머 즉시 종료 버튼 -->
+          <button id="btn-force-end"
+                  class="btn w-full py-2.5 rounded-xl text-sm
+                         bg-gradient-to-r from-rose-500 to-red-600
+                         text-white shadow-lg shadow-red-500/20
+                         hover:shadow-red-400/35 hover:from-rose-400 hover:to-red-500">
+            ⏹ &nbsp;타이머 종료
+          </button>
+
           <button id="btn-reset"
                   class="btn w-full py-2.5 rounded-xl text-sm
                          bg-gradient-to-r from-slate-600 to-slate-700
@@ -567,6 +577,9 @@
       <h2 class="font-orbitron font-black text-5xl text-white glow-white tracking-widest">
         GAME OVER
       </h2>
+      <div id="winner-display" class="font-noto font-black text-3xl text-yellow-300 glow-yellow mt-2">
+        -- 승리!
+      </div>
       <div class="flex items-center justify-center gap-10 mt-2">
         <div class="text-center">
           <div id="final-citizen"

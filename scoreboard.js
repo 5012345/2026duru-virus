@@ -27,6 +27,7 @@ const state = {
   currentBannerKey: null,
   lastSyncedTime:   1200,
   maxPlayers:   30, // 기본 최대 30명
+  initialZombieCount: 6, // 리셋 시 생성된 초기 좀비 수 저장용
 };
 
 // ── DOM 요소 캐시 ────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ const DOM = {
   btnPlayerDec:      document.getElementById('btn-player-dec'),
   btnPlayerInc:      document.getElementById('btn-player-inc'),
   playerCountDisplay:document.getElementById('player-count-display'),
+  btnForceEnd:       document.getElementById('btn-force-end'),
 
   alarmRows: {
     960: document.getElementById('alarm-row-16'),
@@ -183,6 +185,16 @@ function countPlayers() {
   return { citizens, zombies };
 }
 
+// 우승팀 판정: 시민 수 < 최초 좀비 수 * 2 이면 좀비 승리, 아니면 시민 승리
+function judgeWinner(citizens) {
+  const threshold = (state.initialZombieCount || 6) * 2;
+  if (citizens < threshold) {
+    return 'zombie'; // 좀비 승리
+  } else {
+    return 'citizen'; // 시민 승리
+  }
+}
+
 // 이모지 그리드 렌더
 // emoji: '🧑' or '🧟', count: 표시할 인원 수
 function renderEmojiGrid(containerId, emoji, count) {
@@ -276,7 +288,12 @@ function startLocalTimer() {
 
     if (state.localTimeLeft === 0) {
       stopLocalTimer();
-      REF.gameState.update({ is_active: false, time_left: 0 });
+      REF.gameState.update({ is_active: false, time_left: 0 })
+        .then(() => {
+          const { citizens, zombies } = countPlayers();
+          const winner = judgeWinner(citizens);
+          showGameOver(citizens, zombies, winner);
+        });
     }
   }, 1000);
 }
@@ -314,7 +331,10 @@ function triggerAlarm(timePoint) {
   markAlarmDone(timePoint);
 
   if (timePoint === 0) {
-    setTimeout(() => showGameOver(citizens, zombies), 3000);
+    setTimeout(() => {
+      const winner = judgeWinner(citizens);
+      showGameOver(citizens, zombies, winner);
+    }, 3000);
   }
 }
 
@@ -380,9 +400,23 @@ function markAlarmDone(timePoint) {
 // ══════════════════════════════════════════════════════════════════════
 // 게임 오버
 // ══════════════════════════════════════════════════════════════════════
-function showGameOver(citizens, zombies) {
+function showGameOver(citizens, zombies, winner) {
   DOM.finalCitizen.textContent = citizens;
   DOM.finalZombie.textContent  = zombies;
+  
+  const winnerDisplay = document.getElementById('winner-display');
+  if (winnerDisplay) {
+    if (winner === 'zombie') {
+      winnerDisplay.textContent = '🧟 좀비 승리! (최초 좀비 지정자 우승)';
+      winnerDisplay.style.color = '#f87171'; // 빨간색 톤
+      winnerDisplay.className = winnerDisplay.className.replace(/glow-(cyan|red|yellow)/g, '') + ' glow-red';
+    } else {
+      winnerDisplay.textContent = '🧑 시민 승리!';
+      winnerDisplay.style.color = '#38bdf8'; // 파란색 톤
+      winnerDisplay.className = winnerDisplay.className.replace(/glow-(cyan|red|yellow)/g, '') + ' glow-cyan';
+    }
+  }
+  
   DOM.gameOverOverlay.classList.remove('hidden');
 }
 
@@ -447,7 +481,8 @@ function performReset() {
     .then(() => db.ref('game_state').set({
       time_left: 1200,
       is_active: false,
-      max_players: n
+      max_players: n,
+      initial_zombie_count: zombieCount // 최초 좀비 수 저장
     }))
     .then(() => REF.interactions.set(null))
     .then(() => {
@@ -500,13 +535,26 @@ REF.players.on('value', snapshot => {
     updatePlayerCell(pid, pdata);
   }
 
+  const { citizens, zombies } = countPlayers();
+
   // 생존 현황 표시는 게임 중에는 고정:
   // 게임이 비활성(시작 전 or 종료 후)일 때만 실시간 반영
   if (!state.isActive) {
-    const { citizens, zombies } = countPlayers();
     renderSurvivalDisplay(citizens, zombies);
+  } else {
+    // 💡 진행 중 좀비 승리 조건 실시간 실시간 감시
+    if (state.initialZombieCount > 0) {
+      const threshold = state.initialZombieCount * 2;
+      if (citizens < threshold) {
+        stopLocalTimer();
+        REF.gameState.update({ is_active: false, time_left: 0 })
+          .then(() => {
+            showGameOver(citizens, zombies, 'zombie');
+          });
+        return;
+      }
+    }
   }
-  // 게임 중에는 알람 시점(triggerAlarm)에서만 화면 갱신
 });
 
 // ── 게임 상태 리스너 (단 1회만 등록) ────────────────────────────────
@@ -517,6 +565,9 @@ REF.gameState.on('value', snapshot => {
   const wasActive   = state.isActive;
   state.isActive    = data.is_active  ?? false;
   state.timeLeft    = data.time_left  ?? 1200;
+
+  // 최초 좀비 수 동기화
+  state.initialZombieCount = data.initial_zombie_count ?? 6;
 
   // max_players 동기화
   const oldMaxPlayers = state.maxPlayers;
@@ -580,7 +631,7 @@ REF.players.once('value', snapshot => {
 
 REF.gameState.once('value', snapshot => {
   if (!snapshot.exists()) {
-    REF.gameState.set({ time_left: 1200, is_active: false, max_players: 30 });
+    REF.gameState.set({ time_left: 1200, is_active: false, max_players: 30, initial_zombie_count: 6 });
   }
 });
 
@@ -605,6 +656,25 @@ if (DOM.btnPlayerDec && DOM.btnPlayerInc && DOM.playerCountDisplay) {
     if (state.maxPlayers < 30) {
       const newCount = state.maxPlayers + 1;
       REF.gameState.update({ max_players: newCount });
+    }
+  });
+}
+
+// ── 타이머 즉시 종료 클릭 이벤트 바인딩 ──────────────────────────────────
+if (DOM.btnForceEnd) {
+  DOM.btnForceEnd.addEventListener('click', () => {
+    if (!state.isActive) {
+      alert('게임이 시작되지 않았습니다.');
+      return;
+    }
+    if (confirm('타이머를 즉시 종료하고 게임 결과를 판정하시겠습니까?')) {
+      stopLocalTimer();
+      REF.gameState.update({ is_active: false, time_left: 0 })
+        .then(() => {
+          const { citizens, zombies } = countPlayers();
+          const winner = judgeWinner(citizens);
+          showGameOver(citizens, zombies, winner);
+        });
     }
   });
 }

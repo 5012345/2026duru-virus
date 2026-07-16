@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "VIRUS 2026",
+    "url": "http://localhost:8080",
+    "stack": "정적 HTML"
+  },
+  "tracks": [
+    "security",
+    "edzip"
+  ],
+  "edzipCase": "A",
+  "teacher": {
+    "dormsHandle": ""
+  },
+  "ownershipConfirmed": true
+}

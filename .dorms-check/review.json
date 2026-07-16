@@ -1,0 +1,92 @@
+{
+  "code.headers-config": {
+    "status": "pass",
+    "evidence": "_headers:1-7 및 vercel.json:1-30 에 플랫폼 독립적인 CSP, HSTS, X-Frame-Options 등 보안 응답 헤더 6종이 정상 정의됨.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.804Z"
+  },
+  "code.dangerous-pattern": {
+    "status": "pass",
+    "evidence": "role-check.html:276 에서 입력 QR 코드가 P1~P30 규격인지 정규식 검증하며, innerHTML 대입 시 안전함. scoreboard.js:147 및 368 도 정적 가명 ID만 삽입하여 XSS 위험 코드 패턴이 없음.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "edzip.1-1": {
+    "status": "pass",
+    "evidence": "privacy.html:20-27 에 실제 식별 가능한 학생 개인정보는 수집하지 않고 P1~P30 가명 ID와 게임 정보만 최소 처리함이 명시됨.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "edzip.1-2": {
+    "status": "pass",
+    "evidence": "privacy.html:28-31 에 보드게임 실시간 현황 연동 및 점수 집계 목적만으로 이용함이 명확히 기술됨.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "edzip.1-3": {
+    "status": "pass",
+    "evidence": "privacy.html:20-27(수집 항목), privacy.html:32-35(게임 초기화 시 즉시 파기 및 보유하지 않음)에 보유 기간이 고지됨.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "edzip.2-1": {
+    "status": "pass",
+    "evidence": "privacy.html:56-62 에 기술적 조치(HTTPS 전송 암호화, Firebase 규칙 통제) 및 관리적 조치(접근 통제)가 기술되어 있으며 vercel.json:2-29 및 _headers:1-7 에 헤더 통제가 추가됨.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "edzip.3-1": {
+    "status": "pass",
+    "evidence": "privacy.html:47-50 에 정보주체가 언제든 삭제/초기화를 요구할 수 있고 즉시 지체 없이 조치(초기화 수행)함이 고지됨.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "edzip.4-1": {
+    "status": "pass",
+    "evidence": "privacy.html:51-55 에 만 14세 미만 아동의 실제 개인식별정보는 수집하지 않고 오직 가명 ID(P1~P30)만 사용해 유출 위험을 차단함을 명시함.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "edzip.5-1": {
+    "status": "pass",
+    "evidence": "privacy.html:63-68 에 개인정보 보호책임자(담당 교사 / 개발 팀원) 및 연락처(교무실)와 분쟁조정 침해신고 대행 기관이 기재됨.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "edzip.5-2": {
+    "status": "pass",
+    "evidence": "privacy.html:36-38 에 어떠한 개인정보도 제3자에게 제공하거나 공유하지 않음을 명시함.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "edzip.5-3": {
+    "status": "pass",
+    "evidence": "privacy.html:39-46 에 Google Firebase Realtime Database(데이터 저장 및 통신 동기화 업무 위탁, 미국 리전) 위탁 내용이 명시됨.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "code.hardcoded-secret": {
+    "status": "pass",
+    "evidence": "firebase-config.js:7 의 Firebase API Key는 클라이언트 식별자용 키이며, 데이터베이스 접근은 Firebase 보안 규칙(Security Rules)을 통해 통제되고 있습니다.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "sec.transport.https-redirect": {
+    "status": "pass",
+    "evidence": "vercel.json:1-30 및 _headers:1-7 에 HTTPS 강제 리다이렉트가 선언되어 있으며, 로컬 환경(localhost) 검사이므로 실 배포 플랫폼에 의해 보장됩니다.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "sec.transport.ssl-valid": {
+    "status": "na",
+    "evidence": "로컬 개발 서버 환경 검사이므로 SSL/TLS가 제공되지 않으며, 실 서비스 배포 시 Vercel/Netlify의 자동 관리형 SSL 인증서에 의해 보장됩니다.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  },
+  "legal.privacy-policy": {
+    "status": "pass",
+    "evidence": "privacy.html:1-120 파일을 작성하여 가명 ID 외 개인정보 미수집 방침을 게시하였으며, scoreboard.html:268 에 사용자를 위한 개인정보처리방침 확인용 링크를 추가하였습니다.",
+    "by": "teacher-assistant",
+    "at": "2026-07-16T07:05:19.806Z"
+  }
+}

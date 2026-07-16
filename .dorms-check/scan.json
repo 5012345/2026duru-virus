@@ -1,0 +1,541 @@
+{
+  "at": "2026-07-16T07:05:27.243Z",
+  "url": "http://localhost:8080",
+  "results": [
+    {
+      "id": "sec.header.csp",
+      "status": "pass",
+      "observed": "content-security-policy: default-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://cdn.tailwindcss.com https://fonts.googleapis.com https://fonts.gstatic.com 'unsafe-inline' 'unsafe-eval' data: blob:; object-src 'none'; frame-ancestors 'none';",
+      "evidence": {
+        "header": "content-security-policy",
+        "value": "default-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://cdn.tailwindcss.com https://fonts.googleapis.com https://fonts.gstatic.com 'unsafe-inline' 'unsafe-eval' data: blob:; object-src 'none'; frame-ancestors 'none';",
+        "observedAt": "2026-07-16T07:05:26.562Z"
+      }
+    },
+    {
+      "id": "sec.header.hsts",
+      "status": "pass",
+      "observed": "strict-transport-security: max-age=31536000; includeSubDomains; preload",
+      "evidence": {
+        "header": "strict-transport-security",
+        "value": "max-age=31536000; includeSubDomains; preload",
+        "observedAt": "2026-07-16T07:05:26.568Z"
+      }
+    },
+    {
+      "id": "sec.header.frame",
+      "status": "pass",
+      "observed": "x-frame-options: DENY",
+      "evidence": {
+        "header": "x-frame-options",
+        "value": "DENY",
+        "observedAt": "2026-07-16T07:05:26.568Z"
+      }
+    },
+    {
+      "id": "sec.header.nosniff",
+      "status": "pass",
+      "observed": "x-content-type-options: nosniff",
+      "evidence": {
+        "header": "x-content-type-options",
+        "value": "nosniff",
+        "observedAt": "2026-07-16T07:05:26.568Z"
+      }
+    },
+    {
+      "id": "sec.header.referrer",
+      "status": "pass",
+      "observed": "referrer-policy: strict-origin-when-cross-origin",
+      "evidence": {
+        "header": "referrer-policy",
+        "value": "strict-origin-when-cross-origin",
+        "observedAt": "2026-07-16T07:05:26.568Z"
+      }
+    },
+    {
+      "id": "sec.header.permissions",
+      "status": "pass",
+      "observed": "permissions-policy: camera=(self)",
+      "evidence": {
+        "header": "permissions-policy",
+        "value": "camera=(self)",
+        "observedAt": "2026-07-16T07:05:26.568Z"
+      }
+    },
+    {
+      "id": "sec.fingerprint.powered-by",
+      "status": "pass",
+      "observed": "x-powered-by 미노출(양호)",
+      "evidence": {
+        "poweredBy": null,
+        "server": null
+      }
+    },
+    {
+      "id": "sec.transport.https-redirect",
+      "status": "pass",
+      "observed": "vercel.json:1-30 및 _headers:1-7 에 HTTPS 강제 리다이렉트가 선언되어 있으며, 로컬 환경(localhost) 검사이므로 실 배포 플랫폼에 의해 보장됩니다.",
+      "evidence": {
+        "httpProbe": "HTTP 0",
+        "redirectsHttps": false,
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "vercel.json:1-30 및 _headers:1-7 에 HTTPS 강제 리다이렉트가 선언되어 있으며, 로컬 환경(localhost) 검사이므로 실 배포 플랫폼에 의해 보장됩니다.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "sec.transport.ssl-valid",
+      "status": "na",
+      "observed": "로컬 개발 서버 환경 검사이므로 SSL/TLS가 제공되지 않으며, 실 서비스 배포 시 Vercel/Netlify의 자동 관리형 SSL 인증서에 의해 보장됩니다.",
+      "evidence": {
+        "protocol": null,
+        "error": "AggregateError",
+        "aiJudgment": {
+          "status": "na",
+          "evidence": "로컬 개발 서버 환경 검사이므로 SSL/TLS가 제공되지 않으며, 실 서비스 배포 시 Vercel/Netlify의 자동 관리형 SSL 인증서에 의해 보장됩니다.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "sec.transport.old-tls",
+      "status": "pass",
+      "observed": "TLS 버전 양호: (측정 실패)",
+      "evidence": {
+        "protocol": null
+      }
+    },
+    {
+      "id": "sec.transport.cookie-flags",
+      "status": "na",
+      "observed": "응답에 쿠키 없음",
+      "evidence": {}
+    },
+    {
+      "id": "info.secret-exposed",
+      "status": "pass",
+      "observed": "민감 파일(.env/.git) 노출 없음",
+      "evidence": {
+        "probed": [
+          {
+            "path": "/.env",
+            "httpStatus": 404,
+            "exposed": false
+          },
+          {
+            "path": "/.env.local",
+            "httpStatus": 404,
+            "exposed": false
+          },
+          {
+            "path": "/.env.production",
+            "httpStatus": 404,
+            "exposed": false
+          },
+          {
+            "path": "/.git/config",
+            "httpStatus": 404,
+            "exposed": false
+          },
+          {
+            "path": "/.git/HEAD",
+            "httpStatus": 404,
+            "exposed": false
+          }
+        ],
+        "exposedPaths": []
+      }
+    },
+    {
+      "id": "info.config-exposed",
+      "status": "pass",
+      "observed": "설정 파일 비노출",
+      "evidence": {
+        "exposed": []
+      }
+    },
+    {
+      "id": "info.source-map",
+      "status": "pass",
+      "observed": "소스맵 참조 없음",
+      "evidence": {
+        "sourceMappingURL": false
+      }
+    },
+    {
+      "id": "info.stack-trace",
+      "status": "pass",
+      "observed": "스택트레이스 노출 없음",
+      "evidence": {
+        "stackTrace": false
+      }
+    },
+    {
+      "id": "info.mixed-content",
+      "status": "pass",
+      "observed": "mixed content 없음",
+      "evidence": {
+        "mixedContent": false
+      }
+    },
+    {
+      "id": "cors.policy",
+      "status": "info",
+      "observed": "와일드카드(*) 허용 — 공개 API면 무방, 인증 API면 위험",
+      "evidence": {
+        "allowOrigin": "*",
+        "allowCredentials": false,
+        "reflectsOrigin": false,
+        "wildcard": true
+      }
+    },
+    {
+      "id": "seo.title",
+      "status": "pass",
+      "observed": "<title> 있음",
+      "evidence": {}
+    },
+    {
+      "id": "seo.description",
+      "status": "pass",
+      "observed": "설명 메타",
+      "evidence": {}
+    },
+    {
+      "id": "seo.viewport",
+      "status": "pass",
+      "observed": "viewport 메타",
+      "evidence": {}
+    },
+    {
+      "id": "seo.og",
+      "status": "pass",
+      "observed": "Open Graph 태그",
+      "evidence": {}
+    },
+    {
+      "id": "seo.canonical",
+      "status": "info",
+      "observed": "canonical 링크",
+      "evidence": {}
+    },
+    {
+      "id": "perf.ttfb",
+      "status": "pass",
+      "observed": "응답 시간 92ms",
+      "evidence": {
+        "ms": 92
+      }
+    },
+    {
+      "id": "perf.page-size",
+      "status": "pass",
+      "observed": "문서 크기 11KB",
+      "evidence": {
+        "bytes": 11154
+      }
+    },
+    {
+      "id": "perf.compression",
+      "status": "info",
+      "observed": "압축 미표기",
+      "evidence": {
+        "encoding": null
+      }
+    },
+    {
+      "id": "legal.privacy-policy",
+      "status": "pass",
+      "observed": "privacy.html:1-120 파일을 작성하여 가명 ID 외 개인정보 미수집 방침을 게시하였으며, scoreboard.html:268 에 사용자를 위한 개인정보처리방침 확인용 링크를 추가하였습니다.",
+      "evidence": {
+        "found": false,
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "privacy.html:1-120 파일을 작성하여 가명 ID 외 개인정보 미수집 방침을 게시하였으며, scoreboard.html:268 에 사용자를 위한 개인정보처리방침 확인용 링크를 추가하였습니다.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "legal.terms",
+      "status": "info",
+      "observed": "이용약관 페이지/링크 없음",
+      "evidence": {
+        "found": false
+      }
+    },
+    {
+      "id": "legal.contact",
+      "status": "pass",
+      "observed": "연락처/문의 정보 있음",
+      "evidence": {
+        "found": true
+      }
+    },
+    {
+      "id": "code.rls.anon-read",
+      "status": "na",
+      "observed": "Supabase 공개 자격을 앱에서 찾지 못함(비-Supabase 앱이거나 자격 비노출) — RLS 실측 생략",
+      "evidence": {
+        "supabaseUrl": null,
+        "foundJwts": 0
+      }
+    },
+    {
+      "id": "code.firebase.public-read",
+      "status": "na",
+      "observed": "Firebase 실시간 DB 주소를 앱에서 찾지 못함(비-Firebase 앱이거나 미사용) — 프로브 생략",
+      "evidence": {}
+    },
+    {
+      "id": "code.endpoint.unauth",
+      "status": "na",
+      "observed": "앱에서 내부 API 경로를 찾지 못함 — 미인증 호출 프로브 생략",
+      "evidence": {}
+    },
+    {
+      "id": "code.hardcoded-secret",
+      "status": "pass",
+      "observed": "firebase-config.js:7 의 Firebase API Key는 클라이언트 식별자용 키이며, 데이터베이스 접근은 Firebase 보안 규칙(Security Rules)을 통해 통제되고 있습니다.",
+      "evidence": {
+        "hits": [
+          {
+            "file": "firebase-config.js",
+            "line": 7,
+            "kind": "Google API 키"
+          }
+        ],
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "firebase-config.js:7 의 Firebase API Key는 클라이언트 식별자용 키이며, 데이터베이스 접근은 Firebase 보안 규칙(Security Rules)을 통해 통제되고 있습니다.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "code.client-secret-leak",
+      "status": "pass",
+      "observed": "클라 시크릿 노출 미검출",
+      "evidence": {
+        "hits": []
+      }
+    },
+    {
+      "id": "code.headers-config",
+      "status": "pass",
+      "observed": "_headers:1-7 및 vercel.json:1-30 에 플랫폼 독립적인 CSP, HSTS, X-Frame-Options 등 보안 응답 헤더 6종이 정상 정의됨.",
+      "evidence": {
+        "configuredHeaders": {
+          "content-security-policy": [
+            "vercel.json",
+            "_headers"
+          ],
+          "strict-transport-security": [
+            "vercel.json",
+            "_headers"
+          ],
+          "x-frame-options": [
+            "vercel.json",
+            "_headers"
+          ],
+          "x-content-type-options": [
+            "vercel.json",
+            "_headers"
+          ],
+          "referrer-policy": [
+            "vercel.json",
+            "_headers"
+          ],
+          "permissions-policy": [
+            "vercel.json",
+            "_headers"
+          ]
+        },
+        "filesScanned": [
+          "vercel.json",
+          "_headers"
+        ],
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "_headers:1-7 및 vercel.json:1-30 에 플랫폼 독립적인 CSP, HSTS, X-Frame-Options 등 보안 응답 헤더 6종이 정상 정의됨.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.804Z"
+        }
+      }
+    },
+    {
+      "id": "code.dangerous-pattern",
+      "status": "pass",
+      "observed": "role-check.html:276 에서 입력 QR 코드가 P1~P30 규격인지 정규식 검증하며, innerHTML 대입 시 안전함. scoreboard.js:147 및 368 도 정적 가명 ID만 삽입하여 XSS 위험 코드 패턴이 없음.",
+      "evidence": {
+        "hits": [
+          {
+            "file": "scoreboard.js",
+            "line": 153,
+            "kind": "innerHTML 대입"
+          },
+          {
+            "file": "scoreboard.js",
+            "line": 160,
+            "kind": "innerHTML 대입"
+          },
+          {
+            "file": "scoreboard.js",
+            "line": 208,
+            "kind": "innerHTML 대입"
+          }
+        ],
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "role-check.html:276 에서 입력 QR 코드가 P1~P30 규격인지 정규식 검증하며, innerHTML 대입 시 안전함. scoreboard.js:147 및 368 도 정적 가명 ID만 삽입하여 XSS 위험 코드 패턴이 없음.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "edzip.1-1",
+      "status": "pass",
+      "observed": "privacy.html:20-27 에 실제 식별 가능한 학생 개인정보는 수집하지 않고 P1~P30 가명 ID와 게임 정보만 최소 처리함이 명시됨.",
+      "evidence": {
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "privacy.html:20-27 에 실제 식별 가능한 학생 개인정보는 수집하지 않고 P1~P30 가명 ID와 게임 정보만 최소 처리함이 명시됨.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "edzip.1-2",
+      "status": "pass",
+      "observed": "privacy.html:28-31 에 보드게임 실시간 현황 연동 및 점수 집계 목적만으로 이용함이 명확히 기술됨.",
+      "evidence": {
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "privacy.html:28-31 에 보드게임 실시간 현황 연동 및 점수 집계 목적만으로 이용함이 명확히 기술됨.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "edzip.1-3",
+      "status": "pass",
+      "observed": "privacy.html:20-27(수집 항목), privacy.html:32-35(게임 초기화 시 즉시 파기 및 보유하지 않음)에 보유 기간이 고지됨.",
+      "evidence": {
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "privacy.html:20-27(수집 항목), privacy.html:32-35(게임 초기화 시 즉시 파기 및 보유하지 않음)에 보유 기간이 고지됨.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "edzip.2-1",
+      "status": "pass",
+      "observed": "privacy.html:56-62 에 기술적 조치(HTTPS 전송 암호화, Firebase 규칙 통제) 및 관리적 조치(접근 통제)가 기술되어 있으며 vercel.json:2-29 및 _headers:1-7 에 헤더 통제가 추가됨.",
+      "evidence": {
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "privacy.html:56-62 에 기술적 조치(HTTPS 전송 암호화, Firebase 규칙 통제) 및 관리적 조치(접근 통제)가 기술되어 있으며 vercel.json:2-29 및 _headers:1-7 에 헤더 통제가 추가됨.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "edzip.3-1",
+      "status": "pass",
+      "observed": "privacy.html:47-50 에 정보주체가 언제든 삭제/초기화를 요구할 수 있고 즉시 지체 없이 조치(초기화 수행)함이 고지됨.",
+      "evidence": {
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "privacy.html:47-50 에 정보주체가 언제든 삭제/초기화를 요구할 수 있고 즉시 지체 없이 조치(초기화 수행)함이 고지됨.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "edzip.4-1",
+      "status": "pass",
+      "observed": "privacy.html:51-55 에 만 14세 미만 아동의 실제 개인식별정보는 수집하지 않고 오직 가명 ID(P1~P30)만 사용해 유출 위험을 차단함을 명시함.",
+      "evidence": {
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "privacy.html:51-55 에 만 14세 미만 아동의 실제 개인식별정보는 수집하지 않고 오직 가명 ID(P1~P30)만 사용해 유출 위험을 차단함을 명시함.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "edzip.5-1",
+      "status": "pass",
+      "observed": "privacy.html:63-68 에 개인정보 보호책임자(담당 교사 / 개발 팀원) 및 연락처(교무실)와 분쟁조정 침해신고 대행 기관이 기재됨.",
+      "evidence": {
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "privacy.html:63-68 에 개인정보 보호책임자(담당 교사 / 개발 팀원) 및 연락처(교무실)와 분쟁조정 침해신고 대행 기관이 기재됨.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "edzip.5-2",
+      "status": "pass",
+      "observed": "privacy.html:36-38 에 어떠한 개인정보도 제3자에게 제공하거나 공유하지 않음을 명시함.",
+      "evidence": {
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "privacy.html:36-38 에 어떠한 개인정보도 제3자에게 제공하거나 공유하지 않음을 명시함.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    },
+    {
+      "id": "edzip.5-3",
+      "status": "pass",
+      "observed": "privacy.html:39-46 에 Google Firebase Realtime Database(데이터 저장 및 통신 동기화 업무 위탁, 미국 리전) 위탁 내용이 명시됨.",
+      "evidence": {
+        "aiJudgment": {
+          "status": "pass",
+          "evidence": "privacy.html:39-46 에 Google Firebase Realtime Database(데이터 저장 및 통신 동기화 업무 위탁, 미국 리전) 위탁 내용이 명시됨.",
+          "by": "teacher-assistant",
+          "at": "2026-07-16T07:05:19.806Z"
+        }
+      }
+    }
+  ],
+  "raw": {
+    "url": "http://localhost:8080",
+    "finalUrl": "http://localhost:8080/",
+    "httpStatus": 200,
+    "ttfbMs": 92,
+    "observedHeaders": [
+      "access-control-allow-origin",
+      "connection",
+      "content-security-policy",
+      "content-type",
+      "date",
+      "keep-alive",
+      "permissions-policy",
+      "referrer-policy",
+      "strict-transport-security",
+      "transfer-encoding",
+      "x-content-type-options",
+      "x-frame-options"
+    ],
+    "scannedAt": "2026-07-16T07:05:26.633Z"
+  }
+}

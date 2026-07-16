@@ -26,6 +26,7 @@ const state = {
   alarmFired: { 960: false, 720: false, 480: false, 240: false, 0: false },
   currentBannerKey: null,
   lastSyncedTime:   1200,
+  maxPlayers:   30, // 기본 최대 30명
 };
 
 // ── DOM 요소 캐시 ────────────────────────────────────────────────────
@@ -59,6 +60,10 @@ const DOM = {
 
   resetModal:        document.getElementById('reset-confirm-modal'),
   flashOverlay:      document.getElementById('flash-overlay'),
+
+  btnPlayerDec:      document.getElementById('btn-player-dec'),
+  btnPlayerInc:      document.getElementById('btn-player-inc'),
+  playerCountDisplay:document.getElementById('player-count-display'),
 
   alarmRows: {
     960: document.getElementById('alarm-row-16'),
@@ -139,7 +144,8 @@ function buildPlayerGrid() {
   const grid = DOM.playerGrid;
   if (!grid) return; // 플레이어 현황 섹션이 없는 경우 안전 처리
   grid.innerHTML = '';
-  for (let i = 1; i <= 30; i++) {
+  const count = state.maxPlayers || 30;
+  for (let i = 1; i <= count; i++) {
     const pid  = `P${i}`;
     const cell = document.createElement('div');
     cell.id        = `cell-${pid}`;
@@ -399,35 +405,50 @@ function confirmReset() {
 function performReset() {
   stopLocalTimer();
 
-  const groups = [
-    [1,2,3,4,5],
-    [6,7,8,9,10],
-    [11,12,13,14,15],
-    [16,17,18,19,20],
-    [21,22,23,24,25],
-    [26,27,28,29,30],
-  ];
-
-  const zombieSet = new Set();
-  for (const group of groups) {
-    zombieSet.add(group[Math.floor(Math.random() * group.length)]);
+  const n = state.maxPlayers || 30;
+  
+  // 좀비 비율 계산 규칙: n/6 <= Z <= n/5
+  let zMin = Math.ceil(n / 6);
+  let zMax = Math.floor(n / 5);
+  let zombieCount = 0;
+  if (zMin <= zMax) {
+    // 해당 범위 내 정수 선택
+    zombieCount = zMin + Math.floor(Math.random() * (zMax - zMin + 1));
+  } else {
+    // 정수가 존재하지 않는 특수한 경우, 가장 비율에 근접한 정수 선택 (최소 1명)
+    zombieCount = Math.max(1, Math.round(n / 5.5));
   }
 
+  // 1부터 n까지 번호 생성 후 셔플
+  const list = [];
+  for (let i = 1; i <= n; i++) {
+    list.push(i);
+  }
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = list[i];
+    list[i] = list[j];
+    list[j] = temp;
+  }
+
+  // 앞의 zombieCount 만큼을 좀비로 설정
+  const zombieIndices = new Set(list.slice(0, zombieCount));
+
   const playersUpdate = {};
-  for (let i = 1; i <= 30; i++) {
+  for (let i = 1; i <= n; i++) {
     playersUpdate[`P${i}`] = {
-      role:  zombieSet.has(i) ? 'zombie' : 'citizen',
+      role:  zombieIndices.has(i) ? 'zombie' : 'citizen',
       score: 0,
     };
   }
 
-  // ✅ FIX: interactions는 set(null)로 별도 삭제, 나머지는 update
-  const rootUpdates = {
-    players:    playersUpdate,
-    game_state: { time_left: 1200, is_active: false },
-  };
-
-  db.ref('/').update(rootUpdates)
+  // players 노드를 완전히 set()으로 덮어씀 (N명 초과의 이전 데이터가 남지 않도록)
+  db.ref('players').set(playersUpdate)
+    .then(() => db.ref('game_state').set({
+      time_left: 1200,
+      is_active: false,
+      max_players: n
+    }))
     .then(() => REF.interactions.set(null))
     .then(() => {
       console.log('[RESET] 초기화 완료');
@@ -497,6 +518,23 @@ REF.gameState.on('value', snapshot => {
   state.isActive    = data.is_active  ?? false;
   state.timeLeft    = data.time_left  ?? 1200;
 
+  // max_players 동기화
+  const oldMaxPlayers = state.maxPlayers;
+  state.maxPlayers = data.max_players ?? 30;
+  if (DOM.playerCountDisplay) {
+    DOM.playerCountDisplay.textContent = `${state.maxPlayers}명`;
+  }
+
+  // 인원수가 변경되었으면 그리드 다시 그리기
+  if (oldMaxPlayers !== state.maxPlayers) {
+    buildPlayerGrid();
+    for (const [pid, pdata] of Object.entries(state.players)) {
+      updatePlayerCell(pid, pdata);
+    }
+    const { citizens, zombies } = countPlayers();
+    renderSurvivalDisplay(citizens, zombies);
+  }
+
   // 서버 시간과 로컬 시간이 5초 이상 차이나면 보정
   if (Math.abs(state.localTimeLeft - state.timeLeft) > 5) {
     state.localTimeLeft = state.timeLeft;
@@ -542,9 +580,34 @@ REF.players.once('value', snapshot => {
 
 REF.gameState.once('value', snapshot => {
   if (!snapshot.exists()) {
-    REF.gameState.set({ time_left: 1200, is_active: false });
+    REF.gameState.set({ time_left: 1200, is_active: false, max_players: 30 });
   }
 });
+
+// ── 인원 조절 클릭 이벤트 바인딩 ──────────────────────────────────────
+if (DOM.btnPlayerDec && DOM.btnPlayerInc && DOM.playerCountDisplay) {
+  DOM.btnPlayerDec.addEventListener('click', () => {
+    if (state.isActive) {
+      alert('게임 중에는 참가 인원을 변경할 수 없습니다.');
+      return;
+    }
+    if (state.maxPlayers > 5) {
+      const newCount = state.maxPlayers - 1;
+      REF.gameState.update({ max_players: newCount });
+    }
+  });
+
+  DOM.btnPlayerInc.addEventListener('click', () => {
+    if (state.isActive) {
+      alert('게임 중에는 참가 인원을 변경할 수 없습니다.');
+      return;
+    }
+    if (state.maxPlayers < 30) {
+      const newCount = state.maxPlayers + 1;
+      REF.gameState.update({ max_players: newCount });
+    }
+  });
+}
 
 // ── 첫 빌드 ──────────────────────────────────────────────────────────
 // buildPlayerGrid()는 player-grid가 HTML에 있을 때만 동작 (null-safe)

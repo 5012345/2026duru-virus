@@ -330,6 +330,17 @@
         <!-- 컨트롤 버튼 -->
         <div class="rounded-2xl bg-[#161b22] border border-[#30363d] p-4 flex flex-col gap-2 shrink-0">
           <div class="text-[10px] text-slate-600 tracking-[0.25em] uppercase mb-0.5">게임 제어</div>
+          
+          <!-- 인원 설정 UI -->
+          <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-[#30363d] mb-1">
+            <span class="text-xs text-slate-400 font-noto">참가 인원 설정</span>
+            <div class="flex items-center gap-2">
+              <button id="btn-player-dec" class="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all">-</button>
+              <span id="player-count-display" class="font-orbitron font-bold text-sm text-cyan-400 min-w-[2.5rem] text-center">30명</span>
+              <button id="btn-player-inc" class="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all">+</button>
+            </div>
+          </div>
+
           <button id="btn-start-stop"
                   class="btn w-full py-3 rounded-xl text-sm
                          bg-gradient-to-r from-emerald-500 to-teal-500
